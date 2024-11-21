@@ -4,7 +4,9 @@ makedocs(
     sitename="GPU Programming Handbook",
     authors="James Schloss (Leios)",
     pages = [
-        "General Information" => "index.md",
+        "Publication Details" => "index.md",
+        "About This Book" => "content/intro.md",
+        "Language Doesn't Matter" => "content/language.md",
     ],
 )
 
