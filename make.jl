@@ -1,12 +1,11 @@
 using Documenter
 
 makedocs(
-    sitename="GPU Programming Handbook",
+    sitename="GPU Kernel Handbook",
     authors="James Schloss (Leios)",
     pages = [
-        "Publication Details" => "index.md",
-        "About This Book" => "content/intro.md",
-        "Language Doesn't Matter" => "content/language.md",
+        "Welcome" => "index.md",
+        "Introduction" => "content/intro.md",
     ],
 )
 

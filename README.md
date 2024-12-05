@@ -1,4 +1,4 @@
-# GPU Programming Handbook
+# GPU Kernel Handbook
 
 This is a simple book filled with all the information to get started with GPGPU
 
