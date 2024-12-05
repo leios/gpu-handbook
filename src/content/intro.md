@@ -2,7 +2,7 @@
 
 During my PhD, I got this question a lot.
 And it's a good question.
-If you are used to simulating the motion of galaxies, why would you care about the latest 3D animation from PIXAR or DreamWorks?
+If you are a scientist who is used to simulating the motion of galaxies, why would you care about the latest animation from PIXAR or DreamWorks?
 Well, let's talk about that.
 
 As a reminder, GPU stands for Graphics Processing Unit.
@@ -32,9 +32,9 @@ I need to stop and expand upon the three separate claims made in the previous st
 3. **The GPU ... is built to solve a lot of ... operations at the same time**: This means that we need to actively think about what each computational core of the GPU is doing in parallel.
 
 I have often said that research in computational science mirrors research in computer graphics.
-Computer graphics researchers generally work on hardware and software tooling for GPUs -- small, parallel devices that can fit on a modern motherboards.
+Computer graphics researchers generally work on hardware and software tooling for GPUs -- small, parallel devices that can fit on modern motherboards.
 Computational scientists generally work on hardware and software tooling for supercomputers -- large, parallel networks of computers strung together to solve difficult problems.
-In a sense, both groups have been attempting to do the same thing: break up complex tasks into simpler ones so they run better on parallel hardware.
+In a sense, both groups have been attempting to do the same thing: break up complex tasks into simpler ones so they make better use of parallel hardware.
 Eventually, the two forces met and General Purpose GPU (GPGPU) computing was born.
 Nowadays, the fastest supercomputers in the world use GPUs for computation.
 It's pretty clear that the GPU does more than "just graphics."
@@ -49,7 +49,7 @@ There are many workflows that are easier to implement and (much) faster on the G
 
 Another great question!
 
-This book is specifically written for students who want to use the GPU for more general applications (like large-scale simulations).
+This book is specifically written for students who want to use their GPU for more general applications (like large-scale simulations).
 If you are reading this book with the hopes of building a game or rendering engine, it might be better for you to look elsewhere (maybe into guides for Vulkan or OpenGL).
 
 That said...
@@ -57,7 +57,7 @@ That said...
 2. Even within traditional graphics workflows, there are several applications that use "compute shaders" for various reasons (volume rendering and particle systems both come to mind). Compute shaders are almost identical to the functions we will be writing in this book.
 3. This book should give you some key intuition about how and why the GPU works the way it does, which could be quite valuable for performance engineering down the road.
 
-So if you are interested in "real" graphics, think of this book as a way to satiate some idle curiousity that might be lingering in the back of your head.
+So if you are interested in "real" graphics, think of this book as a way to satiate some idle curiosity that might be lingering in the back of your head.
 It's all good to know, but it's ok to read it for fun instead of rigor.
 
 Speaking of which, I have thrown a few languages at you already.
@@ -65,7 +65,7 @@ In the previous section, I mentioned Python, Julia, and C.
 Here, I mentioned Vulkan and OpenGL.
 It's time.
 
-Let's talk about languages and in particular...
+Let's talk about...
 
 ## The Big Green Elephant in the Room
 
@@ -76,10 +76,10 @@ Some people might take a walk and think about something else for a while.
 Others might drill down and try to find another solution from a different angle.
 Still others, might rip off all their clothes, jump in the bath, and have a deep, insightful conversation about their problem with a small yellow duck floating next to their head.
 
-I guess I usually took that last approach.
-Except I was fully clothed.
+I guess I usually take that last approach.
+Except I am fully clothed.
 And not *usually* submerged in a body of water.
-And my "yellow duck" was actually a bunch of random people who would listen to someone ramble about useless things while livestreaming on twitch or youtube.
+And my "yellow duck" is actually a bunch of random people who listen to me ramble about useless things while livestreaming on Twitch or YouTube.
 
 While streaming, I would often get asked questions.
 Some were useful.
@@ -100,8 +100,8 @@ What concepts should they target first?
 
 These are all good questions, and (in fact), might be the very same questions you are asking yourself right now when it comes to GPU programming.
 As hard as these problems are to answer, for most people, there are a few good starting points.
-You can't go wrong with Python or Julia as a starter langauge.
-If you want more rigor, go C.
+You can't go wrong with Python or Julia as a starter language.
+If you want more rigor, go C or C++.
 If you want a bigger community, go Rust.
 Game devs might consider C#.
 Web devs, honestly, should talk to someone else.
@@ -115,7 +115,7 @@ It has so much market share, that the company in charge of its design is now one
 Yes, I am talking about NVIDIA and their programming language CUDA.
 
 Yet, the fastest supercomputers in the world today (in 2024), do not use cards from NVIDIA and are largely unable to run CUDA code.
-If you are a research scientist targetting these devices, it might be a good idea to choose another language.
+If you are a research scientist targeting these devices, it might be a good idea to choose another language.
 
 And what about "real" graphics?
 What if you want to make a game or animation?
@@ -135,14 +135,14 @@ My point is that the current state of GPU computing is messy.
 Even though most programmers go with CUDA by default, it doesn't mean that CUDA is the best tool for every job.
 
 More than that, I have no idea who is reading this book or what devices they have available.
-I can't count on them having an NVIDIA GPU to use, but I am certain they have some device at their disposal that can run GPU code, so I will focus on languages (or rather a single language) that I am confident the majority of my audience can use.
+I can't count on everyone having an NVIDIA GPU to use, but I am certain they have some device at their disposal that can run GPU code, so I will focus on languages (or rather a single language) that I am confident the majority of my audience can use.
 
 That is why (after a lot of thought) I settled on using Julia and the KernelAbstractions(.jl) package for this book.
 There are benefits and drawbacks of this choice, which I could ramble about for hours, but in short, Julia provides:
 
-1. A flexible software ecosystem that works on any GPU vendor (AMD, NVidia, Apple Silicon, Intel).
+1. A flexible software ecosystem that works on any GPU vendor (AMD, NVIDIA, Apple Silicon, Intel).
 2. The ability to write code that can execute both on the GPU and in parallel on the CPU at the same time.
-3. A way to execute GPU code without writing GPU-specific functions or kernels.
+3. A way to execute GPU code without writing GPU-specific functions or "kernels."
 4. A straightforward package management approach so users don't have to think about library installation.
 
 There are a few other benefits, but this specific combination of useful features cannot be found anywhere else.
@@ -157,29 +157,24 @@ On the other (other) hand, I really do try to be as objective as possible when t
 There's nothing worse than being sold a tool you can't actually use in practice.
 That's why I am absolutely encouraging you to take the code in this book and rewrite it into the language of your choice.
 
-
-
-For the rest of this chapter, I will try to discuss a host of "things that are good to know" about the current state of GPGPU programming.
-I fully expect you to skip around and read sections of interest or possibly skip skip ahead to the next chapters on the GPU software-harware interface or specific examples.
-This is a book.
-It's up to you to read it how you feel best suits you.
-
-## The big green elephant in the room
+But there is still another catch.
+One that is much harder to explain.
+One I hinted at earlier in this section.
 
 When you buy a CPU, it doesn't matter whether you buy one from AMD or Intel, both will work approximately the same regardless of whether you are using Python, C, Rust, or any other language.
 Unfortunately, that is not the case when it comes to GPUs.
-As stated in the previous section, CUDA only really works on NVidia devices.
+As stated previously, CUDA only really works on NVIDIA devices.
 ROCm is probably the closest to CUDA you can get with AMD cards.
-If you are running a modern Mac (with Apple Silicon), then you will be encouraged to use Metal, which is a hybrid graphics and compute API.
+If you are running a modern Mac (with Apple Silicon), then you will be encouraged to use Metal, which is a hybrid graphics and compute interface.
 
-None of these APIs talk to each other.
-You can't run Metal on NVidia cards.
+None of these languages talk to each other.
+You can't run Metal on NVIDIA cards.
 You can't run ROCm on Macs.
 
-But what if you have multiple users?
-One uses a Mac.
-Another uses an Intel GPU.
-Another uses an NVidia one.
+But what if you are writing "real" software and have multiple users, all with different hardware?
+One might use a Mac.
+Another might use an Intel GPU.
+Another, an NVIDIA one.
 What do you do?
 
 Good question.
@@ -187,16 +182,16 @@ Really good question.
 Let me know when you have an answer because I am interested too.
 
 The way I see it, there are 2 solutions:
-1. Support all the different backends for individual use-cases.
-2. Write your code in a cross-platform API
+1. Support all the different backends for each individual use-case.
+2. Write your code in a cross-platform interface.
 
 I think option 1 is self-explanatory.
-You'll have to maintain some CUDA code for NVidia users.
+You'll have to maintain some CUDA code for NVIDIA users.
 Some Metal code for Mac users.
 Some ROCm code for AMD Users.
 And so on.
 
-Basically, any time you need to change one of your GPU functions, you need copy that chain along to all the other vendors to make sure all of your users get the change.
+Basically, any time you need to change one of your GPU functions, you need copy that change along to all the other vendors to make sure all of your users get the change.
 It's a pain, but doable.
 It just requires a bit of testing and a few afternoons of debugging for each backend.
 
@@ -211,60 +206,40 @@ There are actually a number of APIs that can be used on essentially any hardware
 The traditional example is the Open Compute Language (OpenCL).
 
 It's great.
-Your functions run at essentially the same speed as vendor-specific APIs.
-It'll run anywhere (AMD, NVidia, Apple Silicon, Intel).
+Your functions run at essentially the same speed as vendor-specific APIs (like CUDA).
+It'll run anywhere (AMD, NVIDIA, Apple Silicon, Intel).
 Heck, it will even run on parallel CPU configurations and a bunch of smartphones.
-It can even support Field-Programmable Gate Arrays (FPGAs), which are completely different than GPUs and used in specific (different) use-cases for performance.
+It also supports Field-Programmable Gate Arrays (FPGAs), which are completely different than GPUs and used in specific (different) use-cases for performance.
 
-So what's the catch?
-Well, OpenCL doesn't have as great library support.
-So if you want to do a Fast Fourier Transform on some data using OpenCL, it will be marginally slower and a little more difficult to use than the corresponding features in CUDA.
-OpenCL is also a little clunkier to use for many workflows.
+So what's the catch? Well...
+1. OpenCL doesn't have as great library support.  So if you want to do a Fast Fourier Transform on some data using OpenCL, it will be marginally slower and a little more difficult to use than the corresponding features in CUDA.
+2. OpenCL is also a little clunkier to use than CUDA for many workflows.  On the other hand, there are some workflows where OpenCL is genuinely the easiest option.
 
-You might think to yourself, "Ah, that doesn't sound too bad," or "That seems like a totally fair price to pay considering that OpenCL code can run on any hardware."
+You might think to yourself, "These sound like totally fair concessions to make when considering that OpenCL code can run on any hardware."
 And you would not necessarily be wrong.
 
 But it's hard to overstate how incredibly dominant CUDA has been in the GPGPU space for so many years.
 Sure, you *could* write your code in a cross-platform way, but why would you?
-You would be taking a small performance hit (something like 10%) and it would take longer to write your code.
+You would be taking a small performance hit (something like 10%) and it would take an extra week to write your code.
 Plus, all of the common GPU programming guides are in CUDA.
 Time is money, and it takes time to learn.
-From a business perspective, it's better to just pay an extra hundred dollars on an NVidia card and save yourself (and your emplyees) the hassle.
+From a business perspective, it's better to just pay an extra hundred dollars on an NVIDIA card and save yourself (and your employees) the hassle.
 
 To reiterate, almost all of the cross-platform APIs have the same drawback: they are not CUDA.
 This means that there is less documentation available.
-The code will be buggier and with less developer suport.
+The code will be buggier and with less developer support.
 The experience simply won't be as smooth as CUDA.
 In a world where everyone is trying to get the absolute best performance possible as quickly as possible, these are huge issues.
 
 Well, you caught me rambling again.
-Let's talk about more useful divisions within the GPU community.
-Namely, the difference between compute and graphics APIs
+Long story short, it's impossible to talk about GPU computing without acknowledging the big green elephant in the room: CUDA.
 
+The good news is that JuliaGPU (my choice for this book) is actually using CUDA under the hood if you are using NVIDIA hardware.
+It's using Metal for Mac, OneAPI for Intel, ROCm for AMD, and a portable version of OpenCL (POCL) for CPU parallelism.
+This alleviates some of the pain points when using other cross-platform languages.
+I'm hoping that this book spurs more developers to try JuliaGPU out and helps us catch bugs and build documentation where needed so we can catch up to CUDA.
 
-## Abstractions good or bad?
+We'll see what the future holds, but I am positive there is a bright future for the JuliaGPU ecosystem.
+At the very least, it's a great language to play with to learn all of the essential concepts before (potentially) rewriting things for some broader application.
 
-An abstraction exists to allow programmers to more easily construct code in a way that makes sense and can be easily understood by hardware.
-An abstraction is a programming concept to make the hardware more accesible to the programmer.
-
-## Loop Vectorization
-
-## Kernel Approaches
-
-## JuliaGPU
-
-## A note
-
-I strongly encourage you to choose whatever language you want and implement the examples in this book with that language.
-It's a great learning exercise if nothing else.
-
-Move "big green elephant in the room" to the end.
-Start with Graphics vs Compute
-
-Look.
-I'll be honest, feel free to skip this chapter.
-Or don't.
-
-On the one hand, it is filled with a bunch of context about the state of GPU computing in 2024, which will definitely help you in understanding some of the finer 
-ch
-
+In the next chapter, I'll be introducing several core abstractions programmers use when writing GPU code and getting you started in running that code on your hardware (whatever that might be).

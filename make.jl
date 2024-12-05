@@ -4,8 +4,8 @@ makedocs(
     sitename="GPU Kernel Handbook",
     authors="James Schloss (Leios)",
     pages = [
-        "Publication Details" => "index.md",
-        "Language Doesn't Matter" => "content/language.md",
+        "Welcome" => "index.md",
+        "Introduction" => "content/intro.md",
     ],
 )
 
