@@ -1,12 +1,15 @@
+!!! todo
+    1. Work in a note on difference between graphics and compute APIs
+    2. Add back in "What is a language?"
 # Why Should I Care about Graphics?
 
 During my PhD, I got this question a lot.
-And it's a good question.
+To be honest, it's a good question.
 If you are a scientist who is used to simulating the motion of galaxies, why would you care about the latest animation from PIXAR or DreamWorks?
 Well, let's talk about that.
 
 As a reminder, GPU stands for Graphics Processing Unit.
-Historically, it's core purpose has been to do graphics.
+Historically, its core purpose has been to do graphics.
 Games.
 Visualizations.
 You know.
@@ -41,7 +44,7 @@ It's pretty clear that the GPU does more than "just graphics."
 
 Throughout this book, I will be actively resisting the urge to compare the experience of programming for the GPU with it's more popular cousin the Central Processing Unit (CPU), which is the default computational device for most programming workflows.
 The way I see it, the CPU and GPU are so different that it is often misleading to constantly relate GPU programming to similar methods on the CPU.
-I will say this: even after learning GPU programming, there may still be many applications that are easier to implement and faster on the CPU
+I will say this: even after learning GPU programming, there may still be many applications that are easier to implement and faster on the CPU.
 The opposite is also true.
 There are many workflows that are easier to implement and (much) faster on the GPU.
 
@@ -63,8 +66,54 @@ It's all good to know, but it's ok to read it for fun instead of rigor.
 Speaking of which, I have thrown a few languages at you already.
 In the previous section, I mentioned Python, Julia, and C.
 Here, I mentioned Vulkan and OpenGL.
-It's time.
 
+Let's talk about that.
+
+!!! note "What is a 'Language'?"
+    In general, a language is a method of communication between two (or more) individuals.
+    A *programming* language is a method to communicate with a computer.
+    In general, programming languages require a translation (compilation) step to transform the user-submitted code to something that the computer can understand.
+    Nowadays, many languages will have multiple compilation steps, and will first lower the user code into a Lower-Level Intermediate Representation (LLIR) before then compiling down to machine code.
+    The core advantage here is that the lowered code can then be compiled to different hardware.
+    Simple put, the machine code might differ between an AMD and Intel machine, but the LLIR code would be shared.
+    
+    Many languages (Julia, Rust, and even C sometimes) will compile down to the same LLIR known as LLVM (which stands for Lower-Level Virtual Machine).
+    This means that as long as the conversion from Julia to LLVM is done well, it should be the same speed as C.
+    There is obvious some nuance to that previous statement, but the goal is clear: by splitting the compilation process up into chunks, it is possible to guarantee performance on various hardware.
+    
+    GPU languages are an entirely different beast entirely.
+    Some of them compile down to something like LLVM that has been modified for the GPU (NVPTX for CUDA, for example).
+    Others compile down to another LLIR entirely.
+    For example, OpenCL (the Open Compute Language) and Vulkan both compile down to something called SPIRV.
+    
+    The problem with SPIRV is that it's a bit too broad.
+    Unlike LLVM, which is the same no matter what language is using it (Julia, Rust, C), SPIRV has two distinctly different implementations for graphics and compute.
+    That is to say that the SPIRV implementation for OpenCL (a compute language) is not the same as the SPIRV implementation for Vulkan (a graphics interface).
+    
+    This is honestly maddening!
+    Though it is entirely possible to work on the LLVM level and create applications that work across multiple CPU langauges, the same is not true for GPU languages -- not only because not all compute languages boil down to SPIRV, but SPIRV is not always the *right* SPIRV for specific uses.
+    What this means is that you cannot use compute kernels written in OpenCL in a graphics language like Vulkan even though they both use SPIRV!
+    
+    Also, I need to say that it's not even clear what a "GPU Language" is.
+    I mean, CUDA is more or less an extension of C.
+    Does that make it a language?
+    A language extension?
+    An Interface?
+    What is this actually supposed to be called?
+    
+    Yeah. That's a good question
+    I will try to call them "interfaces" for this book, but some people might call them different things depending on how they conceptualize them
+    
+    Long rant short, CPU languages have had years (decades) to figure out how to create fast, efficient CPU code.
+    GPU languages, on the other hand, are relatively new and have yet to stabilize on a lower-level scheme that works across all languages.
+    No matter who you ask, the GPU ecosystem (at large) is incredibly messy right now.
+    I hope that this book helps clarify some of that mess.
+
+
+
+    
+
+Now it's time.
 Let's talk about...
 
 ## The Big Green Elephant in the Room
@@ -148,7 +197,7 @@ There are benefits and drawbacks of this choice, which I could ramble about for 
 There are a few other benefits, but this specific combination of useful features cannot be found anywhere else.
 
 Now for the "catch."
-The be completely transparent, I have contributed to the GPU ecosystem in Julia in several ways, including the KernelAbstractions package we will be using for this work.
+To be completely transparent, I have contributed to the GPU ecosystem in Julia in several ways, including the KernelAbstractions package we will be using for this work.
 This could be seen as a net benefit.
 After all, how often do you get to read a book from a developer of the API you will be using?
 On the other hand, I need to acknowledge my biases and let you (the reader) know that several of my opinions might be a little too favorable towards Julia and that your day-to-day experience with the language might fall a little short depending on your familiarity.
