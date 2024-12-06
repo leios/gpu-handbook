@@ -41,6 +41,12 @@ This looks straightforward because it is.
 If you already have a bunch of CPU code, there is nothing easier than just slapping a `Threads.@threads` in front of the right loop and calling it a day.
 But there's a reason I waited until the end of this chapter to introduce this concept.
 
+But also, isn't it a little strange that we need to specify that something happens in parallel to begin with?
+Like, if we have data on an Array and we have mutiple threads available, why isn't it parallel by default?
+
+The `for` loop is an overloaded expression that does completely different things depending on what it's "iterating" over.
+In some cases, it's not even iterating at all!
+
 The problem with looping is that it's inherently iterative.
 That is to say that `i = 1` will come before `i = 2`, which comes before `i = 3`, and so on.
 This is totally fine when we are talking about running code on a single core of a CPU, but let's face it.
