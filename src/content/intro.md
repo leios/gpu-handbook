@@ -1,6 +1,7 @@
 !!! todo
     1. Work in a note on difference between graphics and compute APIs
     2. Add back in "What is a language?"
+    3. Limitations of this work
 # Why Should I Care about Graphics?
 
 During my PhD, I got this question a lot.
@@ -23,9 +24,9 @@ Or to track a bunch of rays of light bouncing around a scene.
 It's not particularly difficult to whip up some code in Python, C, or Julia to solve these problems for us.
 The trouble comes from the fact that these operations often need to be done a lot -- thousands or millions of times.
 We also usually need the results immediately -- like within one sixtieth of a second.
-When you have such a large number of operations and a really short time limit, it suddenly makes sense to offload the computation to a separate device that is built for that kind of work.
+When there are a large number of operations and a really short time limit, it suddenly makes sense to offload computation to a separate device that is built for that kind of work.
 
-And that's what the GPU is.
+That's what the GPU is.
 A separate device that is built to solve a lot of simple operations at the same time.
 
 I need to stop and expand upon the three separate claims made in the previous statement.
@@ -42,79 +43,73 @@ Eventually, the two forces met and General Purpose GPU (GPGPU) computing was bor
 Nowadays, the fastest supercomputers in the world use GPUs for computation.
 It's pretty clear that the GPU does more than "just graphics."
 
-Throughout this book, I will be actively resisting the urge to compare the experience of programming for the GPU with it's more popular cousin the Central Processing Unit (CPU), which is the default computational device for most programming workflows.
-The way I see it, the CPU and GPU are so different that it is often misleading to constantly relate GPU programming to similar methods on the CPU.
-I will say this: even after learning GPU programming, there may still be many applications that are easier to implement and faster on the CPU.
-The opposite is also true.
-There are many workflows that are easier to implement and (much) faster on the GPU.
-
 ## But What If I Actually Care About Graphics?
 
 Another great question!
 
 This book is specifically written for students who want to use their GPU for more general applications (like large-scale simulations).
-If you are reading this book with the hopes of building a game or rendering engine, it might be better for you to look elsewhere (maybe into guides for Vulkan or OpenGL).
+It is a little unfortunate that the programming interfaces used for graphics are typically quite different than those used for computing.
+If you are interested in "real" graphics, it might be best to think of this book as a way to satiate some idle curiosity that might be lingering in the back of your head.
+It's all good to know, but it's ok to read it for fun instead of rigor.
 
 That said...
 1. It is entirely possible to use the lessons learned from this book to do "software rendering," which can be more flexible than traditional graphics workflows.
-2. Even within traditional graphics workflows, there are several applications that use "compute shaders" for various reasons (volume rendering and particle systems both come to mind). Compute shaders are almost identical to the functions we will be writing in this book.
-3. This book should give you some key intuition about how and why the GPU works the way it does, which could be quite valuable for performance engineering down the road.
+2. We'll be discussing several graphical applications that are well-suited for compute workflows, such as ray marching and splatting.
+3. Even within traditional graphics workflows, there are several applications that use "compute shaders" for various reasons (volume rendering and particle systems both come to mind). Compute shaders are almost identical to the functions we will be writing in this book.
+4. This book should give you some key intuition about how and why the GPU works the way it does, which could be quite valuable for performance engineering down the road.
 
-So if you are interested in "real" graphics, think of this book as a way to satiate some idle curiosity that might be lingering in the back of your head.
-It's all good to know, but it's ok to read it for fun instead of rigor.
+But this discussion about the difference between graphics and compute programming interfaces for the GPU reminds me about something I really have to say. 
+An unfortunate truth about GPU computing in 2024.
+So please bear with me through the next section -- an ill-formed rant about the state of GPU computing that will explode into a rainbow of unfiltered rage if kept bottled for any longer.
 
-Speaking of which, I have thrown a few languages at you already.
-In the previous section, I mentioned Python, Julia, and C.
-Here, I mentioned Vulkan and OpenGL.
+We really need to talk about...
 
-Let's talk about that.
+## The Jank
 
-!!! note "What is a 'Language'?"
-    In general, a language is a method of communication between two (or more) individuals.
-    A *programming* language is a method to communicate with a computer.
-    In general, programming languages require a translation (compilation) step to transform the user-submitted code to something that the computer can understand.
-    Nowadays, many languages will have multiple compilation steps, and will first lower the user code into a Lower-Level Intermediate Representation (LLIR) before then compiling down to machine code.
-    The core advantage here is that the lowered code can then be compiled to different hardware.
-    Simple put, the machine code might differ between an AMD and Intel machine, but the LLIR code would be shared.
-    
-    Many languages (Julia, Rust, and even C sometimes) will compile down to the same LLIR known as LLVM (which stands for Lower-Level Virtual Machine).
-    This means that as long as the conversion from Julia to LLVM is done well, it should be the same speed as C.
-    There is obvious some nuance to that previous statement, but the goal is clear: by splitting the compilation process up into chunks, it is possible to guarantee performance on various hardware.
-    
-    GPU languages are an entirely different beast entirely.
-    Some of them compile down to something like LLVM that has been modified for the GPU (NVPTX for CUDA, for example).
-    Others compile down to another LLIR entirely.
-    For example, OpenCL (the Open Compute Language) and Vulkan both compile down to something called SPIRV.
-    
-    The problem with SPIRV is that it's a bit too broad.
-    Unlike LLVM, which is the same no matter what language is using it (Julia, Rust, C), SPIRV has two distinctly different implementations for graphics and compute.
-    That is to say that the SPIRV implementation for OpenCL (a compute language) is not the same as the SPIRV implementation for Vulkan (a graphics interface).
-    
-    This is honestly maddening!
-    Though it is entirely possible to work on the LLVM level and create applications that work across multiple CPU langauges, the same is not true for GPU languages -- not only because not all compute languages boil down to SPIRV, but SPIRV is not always the *right* SPIRV for specific uses.
-    What this means is that you cannot use compute kernels written in OpenCL in a graphics language like Vulkan even though they both use SPIRV!
-    
-    Also, I need to say that it's not even clear what a "GPU Language" is.
-    I mean, CUDA is more or less an extension of C.
-    Does that make it a language?
-    A language extension?
-    An Interface?
-    What is this actually supposed to be called?
-    
-    Yeah. That's a good question
-    I will try to call them "interfaces" for this book, but some people might call them different things depending on how they conceptualize them
-    
-    Long rant short, CPU languages have had years (decades) to figure out how to create fast, efficient CPU code.
-    GPU languages, on the other hand, are relatively new and have yet to stabilize on a lower-level scheme that works across all languages.
-    No matter who you ask, the GPU ecosystem (at large) is incredibly messy right now.
-    I hope that this book helps clarify some of that mess.
+Yeah.
+I'm going to come out and say it.
+No matter what language or interface you use for GPU programming in 2024, you will probably find yourself at least a little disappointed.
+They all feel a little rough, lacking the polish that programmers are used to nowadays.
+To explain what the problem is in full, we need to take a step back.
+Way back.
 
+In general, a "language" is a method of communication between two (or more) individuals.
+A "*programming* language" is a method to communicate with a computer.
+Programming languages typically require a translation (compilation) step to transform the user-submitted code to something that the computer can understand.
 
+Nowadays, many languages will have multiple compilation steps, and will first lower the user code into a Lower-Level Intermediate Representation (LLIR) before then compiling down to machine code.
+The core advantage here is that the lowered code can then be compiled to different hardware.
+Simply put, the final set of instructions for AMD and Intel machines might be different, but the intermediate representation can be shared.
 
-    
+Many languages (Julia, Rust, and even C sometimes) will compile down to the same intermediate representation known as LLVM (which stands for Lower-Level Virtual Machine).
+This means that as long as the conversion from Julia to LLVM is done well, it should be (roughly) the same speed as C.
 
-Now it's time.
-Let's talk about...
+In a sense, GPU languages are not as straightforward.
+Some of them compile down to something like LLVM that has been modified for the GPU (NVPTX for CUDA, for example).
+Others compile down to another intermediate representation entirely.
+For example, OpenCL (the Open Compute Language) and Vulkan (a graphics interface) both compile down to something called SPIRV.
+
+Now, I hear what you are saying, "That's great! We've got ourselves an open standard that unified both graphics and compute interfaces! Surely all the other interfaces will rally behind it, right?"
+
+If only reality were that simple.
+The problem with SPIRV is that it's a bit too broad.
+Unlike LLVM, which is the same no matter what language is using it (Julia, Rust, C), SPIRV has two distinctly different implementations for graphics and compute.
+That is to say that the SPIRV implementation for OpenCL (a compute language) is not the same as the SPIRV implementation for Vulkan (a graphics interface).
+
+This is honestly maddening!
+What this means is that you cannot use compute kernels written in OpenCL in a graphics language like Vulkan even though they both use SPIRV!
+Though it is entirely possible to work on the LLVM level and create applications that work across multiple CPU langauges, the same is not true for GPU languages -- not only because not all compute languages boil down to SPIRV, but SPIRV is not always the *right* SPIRV for specific uses.
+
+Long story short, while reading this book, you might find yourself frustrated.
+It might feel like the software is holding you back from unleashing your true potential.
+In some ways, it is.
+But keep in mind that CPU languages have had years (decades) to figure out how to create fast, efficient CPU code.
+GPU languages, on the other hand, are relatively new and have yet to stabilize on a lower-level scheme that works across all languages.
+No matter who you ask, the GPU ecosystem (at large) is incredibly messy right now.
+I hope that this book helps clarify some of that mess.
+
+Now it's time to talk specifics.
+In partucular...
 
 ## The Big Green Elephant in the Room
 
@@ -290,5 +285,25 @@ I'm hoping that this book spurs more developers to try JuliaGPU out and helps us
 
 We'll see what the future holds, but I am positive there is a bright future for the JuliaGPU ecosystem.
 At the very least, it's a great language to play with to learn all of the essential concepts before (potentially) rewriting things for some broader application.
+
+
+Before going any further, I think it's important to talk about ...
+
+## The Limitations of this Book
+
+As much as I hate to say it, our time on this Earth is limited.
+It goes without saying that there are things I *can* cover, and things I *can't*.
+
+My ultimate goal with this book is to provide a "quick-start" guide for those wanting to learn how to get started with GPU computing.
+That means that I intend to cover a number of core ideas and concepts that are necessary to consider when trying to acheive good performance on the GPU as well as key applications that I find interesting and useful for a diverse background of research fields.
+
+In my mind, breadth becomes depth.
+That is to say that by surveying a variety of different methods at a surface level, eventually it becomes possible to combine ideas together and drill deep into whatever specific area you choose to study.
+That said, I also recognize that I need to choose my words wisely to save both of us time.
+
+So I want to quickly discuss several core limitations of this book:
+1. We will not be surveying different languages. This book is primarily intended to teach concepts over code. Once you master everything here, it should be relatively straightforward to translate it to whatever language you need for your final application. That said, I will be highlighting languages and their differences as they become relevant in their respective sections.
+2. We will not be discussing specialized hardware that certain vendors add to their GPUs. This means no discussion of hardware rasterization or raytracing, and no mention of tensor cores.
+3. We will not be analyzing performance via NVIDIA-specific tooling like NSight compute. This is actually a pretty big limitation of the work and I am considering adding this back into the book a little later. Long story short, I am running an AMD machine right now and it's a pain to use these tools for other GPUs. More than that, I don't think it is fair to have a chapter on performance analysis that only works for NVIDIA devices.
 
 In the next chapter, I'll be introducing several core abstractions programmers use when writing GPU code and getting you started in running that code on your hardware (whatever that might be).
