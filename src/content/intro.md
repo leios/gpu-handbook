@@ -1,4 +1,4 @@
-!!! note "Reviewer notice"
+!!! note "Reviewer Notice"
     I think all the information in this chapter is good, but the order is a bit off.
     The first section, "Why should I care about graphics?" is pretty clean, but the discussion on CUDA and why I chose JuliaGPU for this book is a bit all over the place.
     
@@ -255,6 +255,9 @@ Long story short, it's impossible to talk about GPU computing without acknowledg
 I think now is as good of a time as any to slap a big disclaimer on top of this work.
 Next up...
 
+!!! note "Reviewer Notice"
+    This section needs a rework. I think it's all valuable information, but maybe it's best to talk about when we do raymarching or splatting? Something to compare and contrast with "software rendering" approaches.
+
 ## The Jank
 
 Yeah.
@@ -322,7 +325,9 @@ It goes without saying that there are things I *can* cover, and things I *can't*
 
 My ultimate goal with this book is to provide a "quick-start" guide for those wanting to learn how to get started with GPU computing.
 That means that I intend to cover a number of core ideas and concepts that are necessary to consider when trying to achieve good performance on the GPU as well as key applications that I find interesting and useful for a diverse background of research fields.
-I'll come back to this section and write the full overview once the chapters are finalized.
+
+!!! note "Reviewer Notice"
+    I'll be coming back to this section later with a full overview once the chapters are more-or-less finalized
 
 For now, I also want to quickly discuss several core limitations of this book:
 1. We will not be surveying different languages. This book is primarily intended to teach concepts over code. Once you master everything here, it should be relatively straightforward to translate it to whatever language you need for your final application. With that said, I will be highlighting languages and their differences as they become relevant in their respective sections.
