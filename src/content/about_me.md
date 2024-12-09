@@ -4,11 +4,11 @@ I am Dr. James Schloss.
 I received my PhD in 2019 from the Okinawa Institute of Science and Technology Graduate University (OIST).
 While there, I studied quantum systems by simulating them with my Graphics Processing Unit (GPU).
 After that, I have been working off and on in the Julia Lab at MIT (a very prominent research arm of the Julia programming language), where I worked on various scientific computing projects such as climate and molecular simulations.
-All of these were done on the GPU.
+All of these projects have been done on the GPU.
 Though I would not consider myself to be a core developer of the JuliaGPU ecosystem, I have contributed to several packages, including KernelAbstractions(.jl), the GPU interface we are using for this work.
 
 I also run the (relatively) popular youtube channel and twitch stream Leios Labs, where we have been developing a book for uncommon algorithms known as the *Arcane Algorithm Archive*.
-Some of the methods in this book were inspired by chapters in that work.
+Some of the chapters in this book were inspired by that work.
 I have also worked with Grant Sanderson (3Blue1Brown) on several projects, including the Summer of Math Exposition, where we encouraged thousands of online content creators to make more math content online.
 
 I have always said, "Your research is only as good as your ability to communicate it."
