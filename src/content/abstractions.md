@@ -1,9 +1,15 @@
-## Abstractions good or bad?
+# What Are Software Abstractions?
 
-An abstraction exists to allow programmers to more easily construct code in a way that makes sense and can be easily understood by hardware.
-An abstraction is a programming concept to make the hardware more accesible to the programmer.
+An abstraction is a metaphorical device used to make a complex task simpler to understand.
+We use abstractions *everywhere* in programming.
+Examples include: `for` and `while` loops, functions, structures and classes, etc.
+Basically every common programming device we use is an abstraction of some form.
 
-## Available abstractions with JuliaGPU
+In this chapter, I will introduce many common abstractions that can be used to perform GPU computation, but let's start at the start...
+
+## Installation
+
+## Your first GPU Array
 
 ## broadcasting
 
