@@ -4,20 +4,36 @@ An abstraction is a metaphorical device used to make a complex task simpler to u
 We use abstractions *everywhere* in programming.
 Examples include: `for` and `while` loops, functions, structures and classes, etc.
 Basically every common programming device we use is an abstraction of some form.
-
 In this chapter, I will introduce many common abstractions that can be used to perform GPU computation, but let's start at the start...
 
 ## Installation
 
+As mentioned in the introduction, we will be using the Julia language for this book, so the first step would be to install Julia.
+It is important to note that this book is intended for those who already have some (at least limited) familiarity with programming.
+As such, I will keep the installation instructions brief.
+If you are already used to programming, you probably already have your own preferred development workflows all sorted out and will just google for similar solutions with Julia.
+
+For most users, installation involves going to the website [https://julialang.org/downloads/](https://julialang.org/downloads/) and following the instructions.
+Note that the command at the top of the page dows assume some familiarity with the terminal (on linux and mac) or Windows shell (on Windows).
+By this, I mean that you need to open up the terminal (or shell on windows) and run the provided command.
+Once you have Julia isntalled, you then need to decide how you want to edit your code:
+
+1. With text editors. This means you will use your text editor of choice (for example: vim, nano, notepad++) and then manage all of your code on your own. You might want to google around for most common options with Julia.
+2. With development environments. These collections of all the things programmers typically need for development packaged into one graphical interface. The most common one for Julia is VSCode, with full installation instructions found here: [https://code.visualstudio.com/docs/languages/julia](https://code.visualstudio.com/docs/languages/julia).
+
+Keep in mind that if you are *not* using Julia and have instead decided to rewrite the code in this book in another language, the installation might be significantly more complicated.
+
 ## Your first GPU Array
 
-## broadcasting
+Now that we have Julia installed, we can get started with GPU programming.
 
-## Kernel Approaches
+## Array operations: Broadcasting
+
+## GPU Functions: Kernels
 
 Mention that we can use CUDA.jl or AMDGPU.jl
 
-## Loop Vectorization
+## Loops 
 
 Let's talk about something that is seemingly trivial: loops.
 
