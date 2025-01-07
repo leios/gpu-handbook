@@ -221,7 +221,7 @@ There are a few other benefits, but this specific combination of useful features
 
 To be clear, the Open Compute Language (OpenCL) also shares many of these advantages and even has a few distinct benefits over Julia as well.
 Unfortunately, OpenCL is a little less straightforward to use.
-The way I see it, this book is about teaching GPU concepts, and the JuliaGPU ecosystem lets me quickly start doing just that.
+The way I see it, this book is about teaching GPU concepts, and the JuliaGPU ecosystem allows me to quickly do just that.
 If I were to write this book with OpenCL (or even CUDA), I would need to spend a significant amount of time explaining syntax and odd quirks to C (or god-forbid C++), that I just don't want to deal with.
 Again, I am actively encouraging you to rewrite this entire book in the language of your choice.
 For me, I'm planning to stick to Julia, but there is a core limitation to this choice I will mention at the end of this chapter.

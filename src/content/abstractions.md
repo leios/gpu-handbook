@@ -13,21 +13,192 @@ It is important to note that this book is intended for those who already have so
 As such, I will keep the installation instructions brief.
 If you are already used to programming, you probably already have your own preferred development workflows all sorted out and will just google for similar solutions with Julia.
 
-For most users, installation involves going to the website [https://julialang.org/downloads/](https://julialang.org/downloads/) and following the instructions.
-Note that the command at the top of the page dows assume some familiarity with the terminal (on linux and mac) or Windows shell (on Windows).
-By this, I mean that you need to open up the terminal (or shell on windows) and run the provided command.
-Once you have Julia isntalled, you then need to decide how you want to edit your code:
+For most users, installation involves going to the website [https://julialang.org/downloads/](https://julialang.org/downloads/) [^1] and following the instructions.
+For most users, this means that you will need to open up the terminal (or shell on Windows) and run the provided command.
+Once you have Julia installed, you then need to decide how you want to edit your code:
 
 1. With text editors. This means you will use your text editor of choice (for example: vim, nano, notepad++) and then manage all of your code on your own. You might want to google around for most common options with Julia.
-2. With development environments. These collections of all the things programmers typically need for development packaged into one graphical interface. The most common one for Julia is VSCode, with full installation instructions found here: [https://code.visualstudio.com/docs/languages/julia](https://code.visualstudio.com/docs/languages/julia).
+2. With development environments. These are collections of all the things programmers typically need for development packaged into one graphical interface. The most common one for Julia is VSCode, with full installation instructions found here: [https://code.visualstudio.com/docs/languages/julia](https://code.visualstudio.com/docs/languages/julia)[^2].
 
-Keep in mind that if you are *not* using Julia and have instead decided to rewrite the code in this book in another language, the installation might be significantly more complicated.
+Keep in mind that if you are *not* using Julia and have instead decided to rewrite the code in this book in another language, the installation might be significantly different and potentially more complicated.
+
+[^1]: https://julialang.org/downloads/
+[^2]: https://code.visualstudio.com/docs/languages/julia](https://code.visualstudio.com/docs/languages/julia
 
 ## Your first GPU Array
 
-Now that we have Julia installed, we can get started with GPU programming.
+Now that we have Julia installed, we can start using our GPU!
+As I discussed in the introduction, the current state of GPU programming is (unfortunately) quite fragmented, so the first step is to identify the hardware on your system.
+Ideally, you already know this information (because you bought or built your own computer and can look at the specifications), but here's some hints to figure out what you have depending on your operating system:
+
+* **Windows**: Go to the "Device Manager" and look under "Display Adaptors", where you should find the manufacturer of your GPU.
+* **Mac**: Go to "About this Mac". If it says you are running an "Apple M$$x$$" chip, where $$x$$ is some number, then you can use your Apple Silicon GPU.
+* **Linux**: To be honest, there are a bunch of different ways to figure out what hardware you are running, so feel free to google and use your preferred method. My go-to is always `lspci | grep "VGA"`, which will tell you what GPUs you have.
+
+In the case you have more than one GPU available, feel free to use whichever one you want (or all of them).
+If you do not have a usable GPU, that is totally ok!
+Instead, you can use your CPU with Julia's basic `Array` type.
+
+If you could not figure out whether you have a usable GPU at this stage, that's also totally fine.
+We can use Julia to figure out which packages will work on your machine.
+More on that in a moment.
+
+For now, let's talk about the Julia packages available for your hardware:
+
+| Hardware Available | Necessary Package | Array Type |
+| ------------------ | ----------------- | ---------- |
+| Parallel CPU       | none              | Array      |
+| NVIDIA GPU         | CUDA              | CuArray    |
+| AMD GPU            | AMDGPU            | ROCArray   |
+| Intel GPU          | oneAPI            | oneArray   |
+| Apple Silicon      | Metal             | MtlArray   |
+
+Keep in mind that the package names here follow the naming conventions for the traditional software tooling of your hardware.
+Julia's package for NVIDIA GPUs is `CUDA`, because it is essentially a wrapper for CUDA (A C language extension for NVIDIA GPU tooling) in Julia.
+At this point, if you already know your GPU hardware, simply install the relevant package by using the following commands:
+
+1. `julia`: This will open the Julia shell (called the REPL, which stands for "Read, Evaluate, Print, and Loop"). You should see an ASCII Julia logo appear and then a green `julia>` prompt.
+2. Press the `]` key: This will open up the package manager and change the prompt to something like `(@v1.10) pkg>`. It will also change the color to blue.
+3. `add GPUBackend`: Where `GPUBackend` is the appropriate package. For example, I have an AMD GPU, so I will `add AMDGPU`. If I were runnig an M2 mac, I would `add Metal`. If I had an NVIDIA GPU, I would `add CUDA`. Keep in mind that this might take some time because it's installing a lot of GPU driver magic in the background.
+4. Press backspace: This will leave the package manager
+5. `using GPUBackend`: This will load the package in the Julia REPL. This might take a second as it's compiling everything for the first time.
+6. `GPUBackend.functional()`: This will test to make sure the package will work on your machine. It *should* return `true` if you have the right hardware available.
+
+If `GPUBackend.functional()` returns `false`, then there is something wrong with the configuration.
+That is absolutely no problem for the purposes of this text, as you can simply use parallel CPU execution instead of the GPU; however, it might be worth googling around to try to figure out why your GPU is not working (and maybe even create an issue on github for the appropriate package if you feel your GPU *should* be supported, but isn't).
+
+!!! tip "But what if I don't know my hardware?"
+    In this case, just install all the packages and test them all.
+    Remember, use `]` to enter the package manager (`(@v1.10) pkg>`) and backspace to return to the Julia REPL (`julia>`):
+    ```
+    (@v1.10) pkg> add AMDGPU CUDA oneAPI Metal
+    julia> using AMDGPU, Metal, oneAPI, CUDA
+    julia> AMDGPU.functional()
+    true
+    
+    julia> Metal.functional()
+    false
+    
+    julia> oneAPI.functional()
+    false
+    
+    julia> CUDA.functional()
+    false
+    ```
+    Here, I have a working AMD GPU, but none of the other vendors will work.
+    I omitted a few error messages that appeared on my machine when `using Metal` and `using oneAPI` as not all users will experience those errors. They both informed me immediately that my hardware was not supported, so I did not need to run `.functional()` on those packages.
+    
+One core difference between CPU and GPU programming is in how users think about the code.
+For the CPU, users typically think about the number of operations each core is performing.
+Though you still need to consider this with the GPU, calculation speed is often not a huge bottleneck to GPU performance.
+Instead, GPU programmers need to think about data flow.
+That is, where the your memory is in GPU memory.
+
+As a rule of thumb, the slowest part of any computation is communication -- specifically communication between the CPU and GPU, but also communication with different types of memory on the GPU.
+We'll be discussing the latter case in more detail with specific examples later.
+For now, let's just create an array and pass the data to the GPU.
+
+```
+julia> a = zeros(10, 10)
+julia> b = ArrayType(a)
+```
+
+Lot's of things to talk about.
+`zeros(...)` is a Julia method to create an array that is all 0 of a particular size. Here, it's 10 by 10.
+This command will create an `Array` object whose memory exists "on the CPU".
+More accurately, the memory will sit on the motherboard RAM, a convenient location for CPU operations.
+We then need to send that data to the GPU with `ArrayType(a)`.
+Here, `ArrayType` is the array type from the table above.
+For example, those with an AMDGPU would use `ROCArray`.
+Those with an NVIDIA GPU would use `CuArray`.
+Those with Apple Silicon would use `MtlArray`.
+
+It is important to note that the command `ArrayType(a)` is actually doing two things at once:
+1. Allocating the appropriate space on the GPU
+2. Copying the data from the CPU to GPU.
+
+In Julia, these two steps are often coupled, but the don't need to be.
+We could have created the same GPU array by running:
+
+```
+b = GPUBackend.zeros(10,10)
+```
+
+This would avoid the (relatively) costly communication between the CPU and GPU.
+Most of the array creation routines (such as `rand(...)`, and `ones(...)` have similar routines for each backend for simplicity.
+
+!!! tip "A note about Macs"
+    If you are running a Mac, you might not have been able to create your array on the GPU.
+    This is because Metal (the API used for GPU computation on Apple Silicon) only supports single precision (`Float32` for example).
+    So to create the necessary array on a mac, specify the type for `zeros(...)` first, like so:
+    ```
+    julia> a = zeros(10, 10)
+    julia> b = MtlArraya)
+
+    ```
+
+### Expected performance from Julia
+
+Ok, it's important to talk about some pitfalls to using Julia.
+After the installation, there are probably two distinct groups of people:
+
+1. Those that are new to GPU programming: These people are probably scratching their head at all the new, unnecessary packages. After all, they just want to use their GPU! Why do they need to think so deeply about their hardware?
+2. Those who have attempted GPU programming before. These people are probably amazed at how easy the installation was. Julia *just did everything for us* in a way that seems like magic!
+
+There is a little truth to both of these claims.
+Yes, Julia does a lot of the heavy lifting for the user.
+And yes, there is still a lot of jank we are trying to get rid of.
+
+But there's another (potentially ill-formed) thought that might be lurking in the back of your mind, "If all these Julia packages are just wrappers to C, why not use C instead? Won't we get a performance penalty for using Julia in this case?"
+
+That's a very good question, and it's difficult to fully explain.
+Long story short, Julia boils down to the same lower-level representation as C (if you are using the clang compiler), so it should be equivalently fast.
+It can also call C code without any performance penalty, so the wrappers should be equivalently fast.
+But there is a cost!
+In fact, you have already experienced it.
+
+When you ran `using GPUBackend` and `ArrayType(a)` above there was some noticeable delay while Julia was getting the code up and running (precompiling).
+If you run the same commands again, they should be super fast.
+Let's check this out with the `@time` macro provided by your GPU backend:
+
+```
+julia> a = zeros(10,10);
+
+julia> GPUBackend.@time ROCArray(a);
+
+julia> GPUBackend.@time ROCArray(a)
+```
+
+For me, this looks like:
+
+```
+julia> a = zeros(10,10);
+
+julia> AMDGPU.@time ROCArray(a);
+  1.676601 seconds (7.35 M allocations: 508.234 MiB, 14.36% gc time, 85.91% comp
+ilation time)
+
+julia> AMDGPU.@time ROCArray(a);
+  0.000370 seconds (12 allocations: 368 bytes)
+```
+
+The second run was literally 4,500 times faster! Also take a look at the information in parentheses.
+The first run had 7.35 million allocations and spent 85% of it's time precompiling.
+The other roughly 15% of time was spent on garbage collection.
+The second run had 12 allocations and no time at all on garbage collection or precompilation.
+
+It is really important to keep in mind that Julia can (and should) get comparable performance to C in most cases, but you need to give it a second to precompile everything first.
+Even though many people in the Julia community are working on decreasing precompilation time, it is unlikely that this will go away entirely any time soon.
+If your specific GPU project requires fast recompilation regularly (which is the case for some graphics workflows), then you might need to take the lessons from this book and translate them into another language in the future.
+
+That said, I truly believe that Julia provides the most flexible ecosystem for most GPU workflows and should be a greate starting language for any GPU project.
 
 ## Array operations: Broadcasting
+
+Ok, now we have a GPU Array. What can we do with that?
+Well, a lot actually.
+
+Julia... multiple dispatch...
 
 ## GPU Functions: Kernels
 
