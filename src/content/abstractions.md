@@ -88,6 +88,25 @@ That is absolutely no problem for the purposes of this text, as you can simply u
     Here, I have a working AMD GPU, but none of the other vendors will work.
     I omitted a few error messages that appeared on my machine when `using Metal` and `using oneAPI` as not all users will experience those errors. They both informed me immediately that my hardware was not supported, so I did not need to run `.functional()` on those packages.
     
+    After you have found the appropriate package on your machine, feel free to remove the unnecessary ones with:
+    
+    ```
+    (@v1.10) pkg> rm GPUBackend1 GPUBackend2 GPUBackend3 ...
+    ```
+
+!!! tip "But what if I can't (or don't want to) use the package mode (`]`)?"
+    You can actually use the package manager as a package, itself, so...
+    ```
+    julia> using Pkg
+    julia> Pkg.add("GPUBackend")
+    ```
+    Where `GPUBackend` comes from the table above.
+
+!!! note "Reviewer Notice"
+    I actually think the `using Pkg` method is more straightforward for beginners. Should we do that one by default and have a separate tip to explain the `]` package management mode?
+    
+    I introduced `]` first because (let's be honest) that's how the majority of people interface with the package manager; however, `using Pkg` is necessary for scripts and CI, so it is also important to know.
+    
 One core difference between CPU and GPU programming is in how users think about the code.
 For the CPU, users typically think about the number of operations each core is performing.
 Though you still need to consider this with the GPU, calculation speed is often not a huge bottleneck to GPU performance.
@@ -192,13 +211,113 @@ Even though many people in the Julia community are working on decreasing precomp
 If your specific GPU project requires fast recompilation regularly (which is the case for some graphics workflows), then you might need to take the lessons from this book and translate them into another language in the future.
 
 That said, I truly believe that Julia provides the most flexible ecosystem for most GPU workflows and should be a greate starting language for any GPU project.
+In particular, it is the only language that provides so many different abstractions for doing GPU computation.
+It's time to talk about them in detail, starting with...
 
-## Array operations: Broadcasting
+## Array operations: indexing, broadcasting, and more!
 
 Ok, now we have a GPU Array. What can we do with that?
-Well, a lot actually.
+Well, a lot actually, but let's start with the basics.
+
+Indexing is the act of accessing array memory one element (index) at a time.
+On the CPU, you might create an array, `a`, and get the first index with `a[1]`.
+It might be reasonable to assume that similar logic would work on the GPU, so let's try it:
+
+
+```
+julia> using GPUBackend
+
+julia> a = ones(10,10);
+
+julia> b = ArrayType(a);
+
+julia> a[1];
+1.0
+
+julia> b[1];
+ERROR: Scalar indexing is disallowed.
+Invocation of getindex resulted in scalar indexing of a GPU array.
+This is typically caused by calling an iterating implementation of a method.
+Such implementations *do not* execute on the GPU, but very slowly on the CPU,
+and therefore should be avoided.
+
+If you want to allow scalar iteration, use `allowscalar` or `@allowscalar`
+to enable scalar iteration globally or for the operations in question.
+Stacktrace:
+
+...
+
+```
+
+As a reminder, `GPUBackend` and `ArrayType` depends on your hardware and can be found in the installation section.
+
+But what's the deal?
+Why can't I access elements of my GPU array?
+What does "scalar indexing" even mean?
+
+Simply put, scalar indexing is the act of accessing an array one element at a time, for example `a[1]`, `a[2]`, or `a[i]`, where `i` is some integer value.
+As to why this is not allowed on the GPU, well... there are a bunch of factors all working against each other to make scalar indexing difficult.
+Remember, the GPU is a separate device that is built to solve a lot of simple operations at the same time.
+This means that:
+1. GPU memory is not "on the CPU", so we can't display it without first transferring it to the motherboard RAM. We could display a single element of `b` (with `b[1]`) if we were to first transfer it back to the CPU with `Array(b)`
+2. The GPU is not meant to do only one thing, but a bunch of things at once. When we are asking the GPU to display a single element with `b[1]`, we are doing something incredibly inefficient from the GPUs perspective.
+
+!!! tip "But what if I *really* need scalar indexing"
+    Keep in mind that if you *really* need to access a single element of a GPU array, you can do it by first setting the `allowscalar` flag `true` (and then turning it off again afterwards):
+    ```
+    julia> GPUBackend.allowscalar(true)
+    ┌ Warning: It's not recommended to use allowscalar([true]) to allow scalar indexing.
+    │ Instead, use `allowscalar() do end` or `@allowscalar` to denote exactly which operations can use scalar operations.
+    └ @ GPUArraysCore ~/.julia/packages/GPUArraysCore/GMsgk/src/GPUArraysCore.jl:188
+    
+    julia> b[1]
+    1.0
+    
+    julia> GPUBackend.allowscalar(false)
+    
+    ```
+    
+    You can also wrap the necessary code in a `do` block, like so:
+
+    ```
+    GPUBackend.allowscalar() do
+        b[1]
+    end
+
+    ```
+    Or use the provided macro
+    ```
+    GPUBackend.@allowscalar b[1]
+    ```
+
+Item 2 is the reason why GPU backends in Julia do not allow users to access GPU arrays one element at a time.
+Simply put, if users are using the GPU one index at a time, it's going to be really, really slow, so we need to do what we can to discourage that behaviour whenever possible.
+If you find yourself in a situation where you need only a single element of a GPU array, then it is best to first tranfer it to a CPU array before doing anything with the data.
+
+
+Things to discuss:
+
+1. views
+2. broadcasting
+3. broadcasting functions
+4. Vector Addition
+
+Exercises:
+1. Vector addition
+2. function broadcasting
+
 
 Julia... multiple dispatch...
+
+
+
+
+### A simple exercise: "Where did the noise go?"
+
+As an interesting note, when timing the vector addition on the CPU and GPU, you might notice that the CPU is faster.
+This might cause you to scratch your head and wonder, "Well, what are we doing this for then?"
+
+So here's a simple example of where
 
 ## GPU Functions: Kernels
 
@@ -252,20 +371,16 @@ For example, let's look at the differences in the output from the two above loop
 | ------- | ------- |
 | single-core | parallel |
 | ------- | ------- |
-| format | this |
-| ------- | ------- |
-2
-1
-10
-8
-5
-9
-3
-4
-7
-6
-
-
+| 1 | 2 |
+| 2 | 1 |
+| 3 | 10 |
+| 4 | 8 |
+| 5 | 5 |
+| 6 | 9 |
+| 7 | 3 |
+| 8 | 4 |
+| 9 | 7 |
+| 10 | 6 |
 
 The single core results look great, but the parallel ones are all jumbled up!
 Why?
