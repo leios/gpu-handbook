@@ -1,4 +1,4 @@
-# What Are Software Abstractions?
+# All the Ways to GPU
 
 An abstraction is a metaphorical device used to make a complex task simpler to understand.
 We use abstractions *everywhere* in programming.
@@ -214,10 +214,12 @@ That said, I truly believe that Julia provides the most flexible ecosystem for m
 In particular, it is the only language that provides so many different abstractions for doing GPU computation.
 It's time to talk about them in detail, starting with...
 
-## Array operations: indexing, broadcasting, and more!
+## Array-based operations
 
 Ok, now we have a GPU Array. What can we do with that?
 Well, a lot actually, but let's start with the basics.
+
+### Indexing
 
 Indexing is the act of accessing array memory one element (index) at a time.
 On the CPU, you might create an array, `a`, and get the first index with `a[1]`.
@@ -262,6 +264,10 @@ This means that:
 1. GPU memory is not "on the CPU", so we can't display it without first transferring it to the motherboard RAM. We could display a single element of `b` (with `b[1]`) if we were to first transfer it back to the CPU with `Array(b)`
 2. The GPU is not meant to do only one thing, but a bunch of things at once. When we are asking the GPU to display a single element with `b[1]`, we are doing something incredibly inefficient from the GPUs perspective.
 
+Item 2 is the reason why GPU backends in Julia do not allow users to access GPU arrays one element at a time.
+Simply put, if users are using the GPU one index at a time, it's going to be really, really slow, so we need to do what we can to discourage that behaviour whenever possible.
+If you find yourself in a situation where you need only a single element of a GPU array, then it is best to first tranfer it to a CPU array before doing anything with the data.
+
 !!! tip "But what if I *really* need scalar indexing"
     Keep in mind that if you *really* need to access a single element of a GPU array, you can do it by first setting the `allowscalar` flag `true` (and then turning it off again afterwards):
     ```
@@ -290,34 +296,367 @@ This means that:
     GPUBackend.@allowscalar b[1]
     ```
 
-Item 2 is the reason why GPU backends in Julia do not allow users to access GPU arrays one element at a time.
-Simply put, if users are using the GPU one index at a time, it's going to be really, really slow, so we need to do what we can to discourage that behaviour whenever possible.
-If you find yourself in a situation where you need only a single element of a GPU array, then it is best to first tranfer it to a CPU array before doing anything with the data.
+So now that we've shaken everyone up a little bit by talking about something that is simultaneously trivial on CPUs and next to impossible on GPUs, let's talk about things we can *actually* do with our GPU array.
+
+In the next few sections, I will be introducing three different abstractions that are commonly used for GPU programming:
+1. Broadcasting: the act of applying the same command to every element in an array.
+2. GPU functions (called kernels): the act of writing a specific function that gives instructions to each GPU core
+3. Loop vectorization: the act of transforming a `for` or `while` loop for GPU execution.
+
+Before going further, it's worth noting that these abstractions are not available for all languages.
+For example, CUDA and OpenCL focus almost exclusively on user-defined GPU functions.
+SyCL and Kokkos focus on loop vectorization.
+Julia is unique in that all three of these major abstractions are deeply ingrained into the ecosystem as a whole and play very nicely not only with each other, but the broader Julia ecosystem.
+
+If you are planning on rewriting all the code in ths book with another language, it might be a good idea to first jump to the abstraction that works well in the language you have chosen and then come back to the other sections as needed.
+For now, I intend to cover things in the order that feels most intuitive for GPU computation, starting with...
+
+### Broadcasting
+
+Ok.
+I get it.
+Most programmers have probebly never used broadcasting.
+Before using Julia, I certainly hadn't.
+So let's start at the start.
+
+To reiterate, *broadcasting* is the act of applying the same command (broadcasting in the colloquial sense) to every element in an array.
+Though accessing individual elements of a GPU array is a little complicated, applying the same operation to all elements of an array is surprisingly easy -- in fact, it's perfect for the GPU!
+
+So let's look at some basic syntax:
+
+```
+julia> a = zeros(10)
+10-element Vector{Float64}:
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+
+julia> a .+= 1
+10-element Vector{Float64}:
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+
+```
+
+In Julia, the `.` before some command indicates to the compiler that the user would like to broadcast the command to all elements of an array.
+So, these lines:
+1. Created an array of ten zeros, called `a`.
+2. Broadcasted the `+= 1` command to each element of the array, indicated with `.+= 1`
+
+As long as you are can write your GPU code as broadcasted operations, it should be possible to execute that code on the GPU.
+For example, the following will also work:
+
+```
+julia> using GPUBackend
+
+julia> a = GPUBackend.zeros(10);
+
+julia> a .+= 1
+10-element ArrayType{Float32, 1, ...}:
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+ 1.0
+
+```
+
+And there you have it!
+You've just executed your first function on the GPU.
+But we probably want to do things way more complicated than just adding one to every element of an array, so let's look at a few quick examples of broadcasting in practice.
+
+#### Adding one to every odd element
+
+We just added one to every element.
+What if we want to do the same, but for every *odd* element?
+To do this, we need to define a custom *range* for accessing our Julia array.
+For example, if we want access only the first five elements of an array, we might use the range `1:5`.
+If we want to choose every other element, then we would go in steps of two, so `1:2:5`.
+Putting this together, if we want to add one to every odd element of an array, we might do...
+
+```
+julia> a = zeros(10);
+
+julia> a[1:2:10] .+= 1;
+
+julia> a
+10-element Vector{Float64}:
+ 1.0
+ 0.0
+ 1.0
+ 0.0
+ 1.0
+ 0.0
+ 1.0
+ 0.0
+ 1.0
+ 0.0
+
+```
+
+And that's that.
+
+Now for a few quick exercises to make sure we understand everything:
+
+!!! todo "Problem 1: Do it on the GPU"
+    Do what we just did on your GPU backend. In other words, change the array type of `a` to your `ArrayType` and add one to every other element
+
+!!! todo "Problem 2: Subtract 1 from every even element"
+    Create some broadcast operation that will subtract one from every even element
+
+!!! todo "Problem 3: Square each element of the array"
+    For context, `x^y` is the math operator in Julia to "raise some number (`x`) to the power of some other number (`y`).
+    So the squaring operator in Julia for a single value would look like `x ^= 2`.
+    
+    Now broadcast that operation to your entire array.
+
+#### Vector addition
+
+When it comes to GPU computation, there is a single problem that every single person does to make sure their code is working as intended.
+It is so common, that the problem is often called the "'Hello World!' of GPU computation.
+That problem is vector addition, the act of adding two vectors together.
+Let's do it with broadcasting.
+
+```
+julia> a = rand(10)
+10-element Vector{Float64}:
+ 0.3446361752270596
+ 0.6044872863666282
+ 0.8081681226442919
+ 0.6586667828785924
+ 0.23172116207667204
+ 0.08632001843030668
+ 0.09675977506693823
+ 0.6771842850312151
+ 0.019671351328815923
+ 0.7149572102336769
+
+julia> b = rand(10)
+10-element Vector{Float64}:
+ 0.30677966842793747
+ 0.27954729235962206
+ 0.37278805220786826
+ 0.7667780614002805
+ 0.9295691111986113
+ 0.6457830807742259
+ 0.4943043624323966
+ 0.8731592407550742
+ 0.3415622970290325
+ 0.32403477239711587
+
+julia> c = a .+ b
+10-element Vector{Float64}:
+ 0.651415843654997
+ 0.8840345787262502
+ 1.1809561748521602
+ 1.4254448442788727
+ 1.1612902732752834
+ 0.7321030992045325
+ 0.5910641374993348
+ 1.5503435257862894
+ 0.36123364835784844
+ 1.0389919826307927
+```
+
+So there's a lot to unpack here.
+Firstly, broadcasting can work in general on the right-hand side of any math equation.
+Secondly, `rand(...)` works the same way as `zeros(...)` or `ones(...)`.
+Right now that might seem trivial, but random numbers are actually a little hard to right on GPUs, so we'll talk about that in a little more depth later.
+Thirdly, it's important to note that `a` and `b` must be the same size for this to work, so make sure that's true before brodcasting operations to more than one array.
+
+But there's a more subtle point here that many people might have missed, and it has to do with the third command, `c = a .+ b`.
+Simply put, `c` did not exist before running the command!
+This means that we have created a new array for the sole purpose of adding `a` and `b`.
+
+Though this might not seem particularly noteworthy on the CPU, it actually has large implications for the GPU.
+Remember that the slowest part of most computation is memory management, and here, we have allocated space for and assigned the values of a random array without even considering the consequences to performance!
+If at all possible, we want to minimize the number of times we create new arrays.
+
+So how might we rewrite things so that we don't unnecessarily allocate `c`?
+Well, the simplist solution is to allocate it at the same time as `a` and `b` and then use `.=` instead of `=`:
+
+```
+julia> a = rand(10);
+
+julia> b = rand(10);
+
+julia> c = similar(a);
+
+julia> c .= a .+ b
+```
+
+Here, we use `similar(a)`, which will create an array that is the same size and shape of `a`, which should (hopefully) also be the same size and shape of `b`.
+The data in `c` from `similar` will be just whatever junk was in memory at the time and won't necessarily be all zeros or anything.
+That shouldn't matter because `c` is used exclusively for output, so there's no reason to invoke `rand(...)` if we don't need it.
+
+There are actually distinct terms to distinguish between the two different types of computation we did:
+1. **In Place** computation is when all operations act on *already existing* data.
+2. **Out of Place** computation is when some operations *create new data*.
+
+So `c = a .+ b` was *out of place*, while `c .= a .+ b` was *in place*.
+It's important to keep this in mind for later.
+Remember that data flow *really* matters with GPU computation, so it's doubly important to make sure you know where your data lives.
+
+A quick note.
+I would like to believe that *every single Julia programmer* has been tripped up by the difference between `=` and `.=`.
+I certainly have torn my own hair out late in the evening, trying to figure out why the performance of my code is so slow, only to realize I forgot a single `.`, and was accidentally allocating a bunch of memory I didn't need to.
+It happens to the best of us, which is why I am pointing it out now while you are young and impressionable.
+Julia syntax sometimes looks sleek, but there's a lot of power under-the-hood, so it is wise to take a second and make sure every line is actually doing what you want. 
+
+I think that's it for now.
+On to some problems.
+
+!!! todo "Problem 4: Try to add arrays of different sizes"
+    ... and see the error message
+
+!!! todo "Problem 5: Do it on the GPU"
+    Create three arrays, `a`, `b`, and `c`, all of type `ArrayType` for your specific GPU backend. Add `a` and `b` together and write them to `c`.
+    You may create `a`, `b`, and `c` in any way you wish, but it might be more interesting to use `ones(...)` or `rand(...)` instead of `zeros(...)` because $$0 + 0 = 0$$.
+
+!!! todo "Problem 6: Add the first five elements of `a` to the last five elements of `b`"
+    Create custom ranges so you can add one through five of `a` to five through ten of `b`.
+    Remember that your output array (`c`), should be five elements this time!
 
 
-Things to discuss:
+#### Broadcasting generic functions
 
-1. views
-2. broadcasting
-3. broadcasting functions
-4. Vector Addition
+Until now, we have been broadcasting pre-defined Julia functions (mainly math operations), but what if we wanted to broadcast our own (user-defined) functions?
+Well, let's do that.
+Let's say we wanted to get ten numbers between one and one-hundred.
+We might create a function that looks like this:
 
-Exercises:
-1. Vector addition
-2. function broadcasting
+```
+julia> f(x) = round(Int, x*100)
+```
 
+This would take some input (`x`), multiply it by one-hundred, and then round it to the nearest integer value (`Int`).
+So `f(0.5)` is `50.
+`f(0.6542)` is `65`.
+And so on.
+Now let's broadcast that function to an array of random numbers:
 
-Julia... multiple dispatch...
+```
+julia> a = rand(10);
 
+julia> f.(a)
+10-element Vector{Int64}:
+ 15
+ 46
+ 12
+ 11
+ 15
+ 13
+ 13
+ 60
+ 89
+ 89
 
+```
 
+Here, we've used the `.` operator to signify that we want the function broadcasted along all elements of the first argument of `f`.
+So let's create another function to do the vector addition from the previous section:
 
-### A simple exercise: "Where did the noise go?"
+```
+julia> g(a, b) = a + b
+g (generic function with 1 method)
+
+julia> a = rand(10);
+
+julia> b = rand(10);
+
+julia> c = similar(a);
+
+julia> c .= g.(a, b)
+10-element Vector{Float64}:
+ 1.1339661653178916
+ 0.9405969685936231
+ 1.576334145965099
+ 0.6608638707221182
+ 1.2142578652057847
+ 1.3606689325191113
+ 0.7669673576476489
+ 1.7838687185111035
+ 1.370863980086035
+ 1.5491853434156098
+
+```
+
+There are actually many different ways we could have done that.
+For example, we could have made `g` use `c` as an argument and then used `g.(c, a, b)`.
+Feel free to explore if you want.
+In fact, I actively encourage it.
+
+I think it's also important to also show off a slightly more powerful function.
+
+ADD MORE
+
+#### A simple exercise: "Where did the noise go?"
 
 As an interesting note, when timing the vector addition on the CPU and GPU, you might notice that the CPU is faster.
 This might cause you to scratch your head and wonder, "Well, what are we doing this for then?"
 
 So here's a simple example of where
+
+#### Some room for development
+
+So here's a weird quirk of the Julia ecosystem.
+Even though broadcasted operations performed on a GPU array are done in parallel by default, the same is not true for traditional CPU `Array`s.
+To be doubly clear, this will be executed in parallel:
+```
+a = GPUBackend.ones(100)
+a .+= a
+```
+but this will not:
+```
+a = ones(100)
+a .+= a
+```
+
+There are a lot of good reasons for why this is the case.
+Some of it comes down to engineering time.
+Some of it comes down to active research questions regarding the proper procedure to distribute generic operations in parallel.
+For the purposes of this book, none of that matters because we are talking about GPU execution, specifically.
+
+It's just good to point out that there are certain areas within the Julia language that people are working on, but are not fully finished yet.
+In fact, there are a bunch of similar stories throughout the GPU ecosystem and I will try to point these out as they come up.
+
+#### Final musings on broadcasting for GPU computation
+
+A few years ago, I had just started working at MIT, and I was excited to see what people were actually using the GPU ecosystem in Julia for.
+I came across an ocean simulation project with incredibly enthusiastic developers.
+It was fast and intuitive to use.
+I was shocked when I found out that they had written their entire codebase solely using broadcasting.
+
+And why shouldn't they?
+Broadcasting provides a hardware-agnostic method for performing almost any mathematical operation!
+If you are exclusively crunching numbers, then there is almost no better abstraction than writing down the math and adding a few `.`s here and there.
+
+Yet, after a few years, they sought even better performance and eventually rewrote their code using GPU-exclusive functions (kernels), which will be introduced in the following section.
+Simply put, broadcasting is an absolutely excellent way to get started with GPU computation in Julia.
+It's an intuitive abstraction and will get you *most* of the performance you need from the GPU.
+
+But there's a reason this work is called the *GPU **Kernel** Handbook*.
+When you need true flexibility or better performance, there is no better abstraction than writing functions specifically for the GPU.
 
 ## GPU Functions: Kernels
 
