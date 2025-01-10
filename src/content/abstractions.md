@@ -603,19 +603,172 @@ julia> c .= g.(a, b)
 
 There are actually many different ways we could have done that.
 For example, we could have made `g` use `c` as an argument and then used `g.(c, a, b)`.
+We could have also written our function using slightly different syntax in Julia, like:
+```
+functon g(a, b)
+    return a + b
+end
+```
 Feel free to explore if you want.
 In fact, I actively encourage it.
 
-I think it's also important to also show off a slightly more powerful function.
+For now, let's wrap everything we've learned about broadcasting into a worked example tha also shows off some of the power of GPU computing.
 
-ADD MORE
+!!! note "Reviewer Notice"
+    I am thinking of replacing this section with something else.
+    Maybe one of the [Diehard tests](https://en.wikipedia.org/wiki/Diehard_tests)?
+    I just couldn't think of one that works so well with broadcasting.
 
 #### A simple exercise: "Where did the noise go?"
 
-As an interesting note, when timing the vector addition on the CPU and GPU, you might notice that the CPU is faster.
-This might cause you to scratch your head and wonder, "Well, what are we doing this for then?"
+Until now, I have avoided timing any of the our code because I wanted to make a point about GPU computation.
+Namely, if you are only working with a few elements at a time, the CPU will usually be faster.
+For example, here are the timing results for vector addition on my computer.
+First, let's do the CPU:
 
-So here's a simple example of where
+```
+julia> a = rand(10);
+
+julia> b = rand(10);
+
+julia> c = similar(a);
+
+julia> @time c .= a .+ b
+  0.000003 seconds (1 allocation: 32 bytes)
+
+```
+
+Now for the GPU:
+
+```
+julia> using AMDGPU
+
+julia> gpu_a = ROCArray(a);
+
+julia> gpu_b = ROCArray(b);
+
+julia> gpu_c = similar(gpu_a);
+
+julia> AMDGPU.@time gpu_c .= gpu_a + gpu_b;
+  0.000054 seconds (46 allocations: 2.500 KiB)
+
+```
+
+Note that for both of these timings, I have shown only the results of teh second run of the code to avoid precompilation overhead.
+Even so, it's clear the CPU is faster.
+How much faster?
+
+```
+julia> 0.000054 / 0.000003
+18.0
+
+```
+
+18 times.
+It's 18 times faster to avoid the GPU entirely!
+So what gives?
+Well, we are doing operations that are a little *too* simple on arrays that are really, really small.
+I mean, the CPU took three *micro*seconds.
+The GPU was fifty-four microseconds.
+Can we really draw any conclusions from such small numbers?
+
+To really get some performance from the GPU, let's do something a little complicated.
+We are going to make an array of random numbers... disappear!
+
+First, let's install the plotting package, `Plots`.
+Remember to enter Julia's package mode with `]` (and then `enter`).
+Then:
+
+```
+(@v1.10) pkg> add Plots
+```
+Now press backspace to enter the Julia shell.
+We can now create a large matrix of random numbers and plot it:
+
+```
+julia> using Plots
+
+julia> a = rand(1920, 1080);
+
+julia> heatmap(a; clims = (0,1))
+```
+
+I have chosen to make the array 1920x1080 because that mirrors the resolution of a high-definition display.
+Also, we are using `heatmap` here (instead of `plot`) because we want a 2D image as output and I am using color limits (`clims`) from zeros to one.
+This should create an image that looks like this:
+
+![Initial Random Array](abstractions_res/out_1.png)
+
+Now we are simply going to create a function that adds a random number to elements of `a`, so:
+
+```
+f(x) = x + rand()
+```
+
+Finally, we'll execute the command 1000 times in a loop and average the results
+
+```
+julia> @time for i = 1:1000
+           a .= f.(a)
+       end
+  1.270488 seconds (1000 allocations: 15.625 KiB)
+
+julia> a ./= 1000;
+```
+
+It took about 1.5 seconds and creates the following image (with `heatmap(a; clims = (0,1))`:
+
+![Initial Random Array](abstractions_res/out_2.png)
+
+Wow!
+All the values have averaged to 0.5!
+
+Ok.
+I get it.
+It's not that impressive.
+After all, the average of `rand(...)` *should be* 0.5, and we just did an average of 1000 numbers for each element of `a`.
+There are some fun discussions we could have about testing how random random number generators truly are, but that would take a lot of time.
+If you are interested in this kind of stuff, I would recommend you look into diehard tests.
+They are a fun suite of tests specifically for random number generation.
+
+For now, we'll move on and run the same code on the GPU
+
+```
+julia> AMDGPU.@time for i = 1:1000
+           b .= f.(b)
+       end
+  0.001738 seconds (18.00 k allocations: 1.068 MiB)
+
+julia> b ./= 1000;
+```
+
+... And here's the real magic.
+Did you see that?
+1.738 *milli*seconds.
+That's roughly 1000 times faster than our CPU implementation!
+
+Here we (finally) start to see a glimpse of the true power of GPU computing.
+On the one hand, we need to balance complexity a bit.
+If it's too complex (think recursion or tree traversal), the CPU will do it better.
+If there are not enough data points (`zeros(10)`), again it's better to stick to the CPU.
+But when the GPU is in it's element, it really can shine.
+
+Now, don't expect every problem to be 1000 times faster on the GPU.
+I have specifically manufactured this ty problem to show off how fast it can be.
+In actual applications, developers typically see anywhere from 5-100 times improvement depending on the situation.
+Still, it's nice to know that we are doing all of this for a good reason, and that reason is performance.
+
+!!! todo "Problem 7: Do it on your machine"
+    I know some of you were tic-tac-typing along with me through the last exercise.
+    Some were not.
+    This problem is a gentle encouragement from me to you to make doubly sure you can do the previous example on your own machine with your own GPU.
+
+!!! note "Reviewer Notice"
+    I need a few more good problems for this section.
+    Or maybe not?
+    I'll have a bunch more problems at the end and there's only so much you can do with broadcasting.
+
+I think it's time to take a second to discuss the limitations of broadcasting.
 
 #### Some room for development
 
