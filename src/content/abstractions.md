@@ -723,6 +723,33 @@ It took about 1.5 seconds and creates the following image (with `heatmap(a; clim
 Wow!
 All the values have averaged to 0.5!
 
+!!! note "About looping in Julia..."
+    Looping in Julia (and in many languages) generally has two modes: `for` and `while`.
+    We have just seen the `for` loop in practice and is most often over a range of a certain number of elements.
+    For example"
+    ```
+    for i = 1:10
+        println(i)
+    end
+    ```
+    Will set the value of `i` to be 1, execute the commant, then set the value of `i` to be 2 and execute the command again.
+    It will then set the value of `i` to be 3 and execute the command again,
+    It will continue this process until it reaches the end of the range provided (`1:10`), which is 10 in this case.
+    This process is known as "iteration" and will be discussed in more detail later in this chapter.
+    For now, I'll mention that the `for` loops allows users to iterate through any container, including `Arrays`, but not GPUArrays due to the scalar iteration issue discussed earlier.
+
+    The other common looping structure in Julia is the `while` loop, which continues executing the same command over and over until some condition is evaluated as `false`.
+    For example:
+    ```
+    i = 1
+    while i <= 10
+        println(i)
+        i += 1
+    end
+    ```
+    This code will also print 1 through 10 as above becaue when `i` evaluates as 11, the statement `i <= 10` is evaluated as `false`, breaking the loop.
+    We'll be showing off a bunch of tricks you can do with looping in Julia throughout this text, but it is worthwhile to take a second to introduce them to users who might not be familiar with the syntax.
+
 Ok.
 I get it.
 It's not that impressive.
@@ -815,25 +842,21 @@ When you need true flexibility or better performance, there is no better abstrac
 
 Mention that we can use CUDA.jl or AMDGPU.jl
 
-## Loops 
+## Loop vectorization
 
-Let's talk about something that is seemingly trivial: loops.
+At this point in time, I have introduced two separate abstractions for GPU computing: broadcasting and kernels.
+I have discussed several core benefits of both, but acknowledge that neither one is common outside of specific circles.
+On the other hand, nearly everyone knows about loops.
+They are one of the first things people learn how to do in any new programming language and are essential tools for almost any workflow.
 
-I think most people who have done programming before have seen a loop:
+On paper, they look like perfect abstractions for parallel computing.
+After all, they iterate through a list.
+It should be entirely possible to distribute that work to multiple cores, so that (for instance) core 1 handles iteration 1 and core 4 handles iteration 4.
+In fact, this is precisely what loop vectorization is, and there are plenty of GPU libraries that use loop vectorization for various GPU backends.
 
-```
-for i = 1:10
-    println(i)
-end
-```
-
-This statement says `for` each element (labelled as `i`) in the range between one and ten (signified by `i = 1:10`), we will print that element (`println(i)`).
-The syntax varies from language to language, but there are very few mainstream languages that do not support a similar syntax.
-In fact, because loops are so prevalent in CPU programming, it's quite common for coders to reuse the syntax for parallel processing.
-For example, if I wanted to run the previous loop in parallel on the CPU in Julia, I would do 2 things:
-
-1. Launch Julia with a certain number of threads. `julia -t 12`, for example would allow me to use up to 12 threads.
-2. Add an `@threads` macro from the `Threads` package to the start of the loop:
+With all that said, I've never found them to be intuitive abstractions for parallel processing.
+I have always had trouble precisely explaining why this is the case, but let me try.
+Here is a parallel `for` loop in Julia:
 
 ```
 Threads.@threads for i = 1:10
@@ -841,26 +864,10 @@ Threads.@threads for i = 1:10
 end
 ```
 
-This looks straightforward because it is.
-If you already have a bunch of CPU code, there is nothing easier than just slapping a `Threads.@threads` in front of the right loop and calling it a day.
-But there's a reason I waited until the end of this chapter to introduce this concept.
+Note that to use this loop, you need to launch Julia with a certain number of threads, such as `julia -t 12` for 12 threads.
+After, all we need to do is add the `@threads` macro from the `Threads` package to the start of the loop.
+At a glance, it looks incredibly straightforward, but now let's look at the output for single core and parallel execution:
 
-But also, isn't it a little strange that we need to specify that something happens in parallel to begin with?
-Like, if we have data on an Array and we have mutiple threads available, why isn't it parallel by default?
-
-The `for` loop is an overloaded expression that does completely different things depending on what it's "iterating" over.
-In some cases, it's not even iterating at all!
-
-The problem with looping is that it's inherently iterative.
-That is to say that `i = 1` will come before `i = 2`, which comes before `i = 3`, and so on.
-This is totally fine when we are talking about running code on a single core of a CPU, but let's face it.
-No one is writing code for a single-core CPU nowadays because such computers essentially don't exist.
-Nowadays, we really do care about parallelism.
-`Threads.@threads` (or similar approaches from other languages) feels a bandage solution to transform an iterative method into a parallel one which can be misleading for students.
-
-For example, let's look at the differences in the output from the two above loops:
-
-| ------- | ------- |
 | single-core | parallel |
 | ------- | ------- |
 | 1 | 2 |
@@ -886,6 +893,16 @@ For parallel loops, the output order is independent of the iterative count betwe
 I remember when I saw this for the first time, I was surprised.
 In my mind, it shouldn't have mattered when the cores finished their operations.
 The `for` loop should have naturally just output everything in the right order, regardless of when the computation was done!
+
+The `for` loop is an overloaded expression that does completely different things depending on what it's "iterating" over.
+In some cases, it's not even iterating at all!
+
+The problem with looping is that it's inherently iterative.
+That is to say that `i = 1` will come before `i = 2`, which comes before `i = 3`, and so on.
+This is totally fine when we are talking about running code on a single core of a CPU, but let's face it.
+No one is writing code for a single-core CPU nowadays because such computers essentially don't exist.
+Nowadays, we really do care about parallelism.
+`Threads.@threads` (or similar approaches from other languages) feels a bandage solution to transform an iterative method into a parallel one which can be misleading for students.
 
 The fact is that `Threads.@threads` is fundamentally changing the loop into something completely different.
 We can't just slap that bad boy on anything.
