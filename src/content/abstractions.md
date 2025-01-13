@@ -298,7 +298,7 @@ If you find yourself in a situation where you need only a single element of a GP
 
 So now that we've shaken everyone up a little bit by talking about something that is simultaneously trivial on CPUs and next to impossible on GPUs, let's talk about things we can *actually* do with our GPU array.
 
-In the next few sections, I will be introducing three different abstractions that are commonly used for GPU programming:
+In the next few sections, I will be discussing three different abstractions that are commonly used for GPU programming:
 1. Broadcasting: the act of applying the same command to every element in an array.
 2. GPU functions (called kernels): the act of writing a specific function that gives instructions to each GPU core
 3. Loop vectorization: the act of transforming a `for` or `while` loop for GPU execution.
@@ -846,15 +846,17 @@ Mention that we can use CUDA.jl or AMDGPU.jl
 
 At this point in time, I have introduced two separate abstractions for GPU computing: broadcasting and kernels.
 I have discussed several core benefits of both, but acknowledge that neither one is common outside of specific circles.
-On the other hand, nearly everyone knows about loops.
+There is yet another abstraction commonly used for GPU programming.
+One that everyone knows (and many people love).
 They are one of the first things people learn how to do in any new programming language and are essential tools for almost any workflow.
+Yes, I'm talking about loops.
 
-On paper, they look like perfect abstractions for parallel computing.
+On paper, loops look like perfect abstractions for parallel computing.
 After all, they iterate through a list.
 It should be entirely possible to distribute that work to multiple cores, so that (for instance) core 1 handles iteration 1 and core 4 handles iteration 4.
 In fact, this is precisely what loop vectorization is, and there are plenty of GPU libraries that use loop vectorization for various GPU backends.
 
-With all that said, I've never found them to be intuitive abstractions for parallel processing.
+With all that said, I've never found them to be intuitive abstractions for parallel programming.
 I have always had trouble precisely explaining why this is the case, but let me try.
 Here is a parallel `for` loop in Julia:
 
@@ -893,27 +895,36 @@ For parallel loops, the output order is independent of the iterative count betwe
 I remember when I saw this for the first time, I was surprised.
 In my mind, it shouldn't have mattered when the cores finished their operations.
 The `for` loop should have naturally just output everything in the right order, regardless of when the computation was done!
-
-The `for` loop is an overloaded expression that does completely different things depending on what it's "iterating" over.
-In some cases, it's not even iterating at all!
-
-The problem with looping is that it's inherently iterative.
-That is to say that `i = 1` will come before `i = 2`, which comes before `i = 3`, and so on.
-This is totally fine when we are talking about running code on a single core of a CPU, but let's face it.
-No one is writing code for a single-core CPU nowadays because such computers essentially don't exist.
-Nowadays, we really do care about parallelism.
-`Threads.@threads` (or similar approaches from other languages) feels a bandage solution to transform an iterative method into a parallel one which can be misleading for students.
+But upon further reflection, I realized my own perspective was naive.
 
 The fact is that `Threads.@threads` is fundamentally changing the loop into something completely different.
 We can't just slap that bad boy on anything.
 When we use `Threads.@threads`, we need to think about the ramifications of parallelism in the very same way we would think about writing complex kernels and distributing that work to the GPU.
 It's just now we *also* need to fight our own intuition on how these loops should function.
-In addition, by relying on loops for parallelism, the code ends up being a large set of nested `for` loops, with one set of loops somewhere in the middle being parallel.
+
+Another problem with looping is that many loops are inherently iterative and cannot be easily parallelized.
+Take timestepping, for example (the act of simulating motion, one small time step at a time).
+In this case, the first step (`i = 1`) *must* come before `i = 2`, which must come before `i = 3`, and so on.
+There is no issue with this when running code on a single core of a CPU, but let's face it.
+No one is writing code for a single-core CPU nowadays because such computers essentially don't exist.
+Nowadays, we really do care about parallelism.
+`Threads.@threads` (or similar approaches from other languages) feels a bandage solution to transform an iterative method into a parallel one which can be misleading for students and programmers.
+
+In addition, by relying on loops for parallelism, the code ends up being a large set of nested `for` loops, with one set of loops somewhere in the middle being parallel, while the rest remain iterative.
+It's a huge mess.
 While it is usually quite clear how to parallelize kernels, the choice of *which* loop to parallelize over is sometimes difficult for beginner programmers.
-
-At least in my experience, I have found that codebases using parallel extensions to inherently loop-based code all end up looking just as messy, if not messier, than the code that uses kernel-based approaches.
+At least in my experience, I have found that codebases using parallel loops end up looking just as messy, if not messier, than code using kernel-based approaches.
 On the other hand, for programmers that know what they are doing, loop-based abstractions can still be quite helpful -- especially for code that already exists and would be a pain to rewrite.
-There are also GPU languages (like Kokkos and SyCL) that use parallel loops by default, so it is good to know that such abstractions also exist in Julia for those who desire it.
+There are also GPU languages (like Kokkos and SyCL) that use parallel loops by default.
 
-### Loops on the GPU
+Unfortunately, for all the reasons mentioned here, there are is not strong library support for loop vectorization on the GPU in Julia, though there have been many attempts.
+If you absolutely need a loop-based abstraction for parallel GPU programming in Julia, I would recommend looking into GPUifyLoops.jl, Floops.jl, or JACC.jl.
+By the time you are reading this, there might be another solution that exists as well.
 
+To wrap up my thoughts on looping as a useful abstraction for GPU computing, I'll say this.
+The most popular language for GPGPU today is CUDA, and it uses kernels exclusively.
+I love broadcasting, but acknowledge it is essentially never used outside of niche applications.
+A lot of computer scientists still believe loops are the answer.
+But if we are looking at the numbers, it's incredibly clear that kernels have won the GPU abstraction wars, and for good reason.
+
+In the following chapters, we will begin to dive deeply into all the different things we can do with GPU kernels, starting with the most trivial stumbling block: summation.
