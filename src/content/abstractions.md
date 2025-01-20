@@ -840,7 +840,61 @@ When you need true flexibility or better performance, there is no better abstrac
 
 ## GPU Functions: Kernels
 
+To recap, we have introduced a language abstraction, known as *broadcasting*, that can be used out-of-the box in Julia for great GPU performance in most cases.
+We also walked through a simple example that used broadcasting to show the power of GPU computing with a 1000 times speed-up (on my hardware, at least) when compared to single-core CPU execution.
+At this point in time, we've got some vague notion of how GPU execution works and what problems it's suited for, but now it's time to talk about the most common abstractions programmers use for GPU programming: kernels.
+
+In GPU programming, a *kernel* is a function specifically written to be run on the GPU.
+For graphics, there is sometimes a different type of function that can be written with more specific limitations.
+These functions are often called *shaders* instead (as one of their primary purposes is to shade or color pixels on a screen), but I am getting ahead of myself here.
+We'll talk about those when we get to them.
+For now, let's talk kernels.
+
+In principle, the only difference between a kernel and a regular function is that kernels are meant to run in parallel on each core
+in principle, this means that every core will run the *same, exact* function at the same time, but there's a catch.
+Keep in mind that a lot of GPU computation will require more units of computation than there are cores.
+For example, a high-definition image might have 1920 x 1080 pixels in it.
+If each pixel is handled by a single core, then we would need 2,073,600 cores to do the computation.
+Unfortunately, the fastest GPUs in the world only have on the order of 5000 cores.
+So what do we do?
+Well, *we* don't really worry about that and instead let a scheduler run stage the computation to happen in large groups of cores in parallel.
+
+Keep in mind that kernels are abstractions.
+They are purposefully hiding information from users to make it easier to program.
+In this case, users shouldn't need to think about the exact mechanics of scheduling on the GPU and can instead focus on writing down the specific computation that each core should perform.
+Because programmers (like myself) like to be pedentic, they will often distinguish the terms a bit here.
+Instead of talking about "cores," which are pieces of hardware, we often talk about "workitems" (or "threads" for CUDA), which are abstract representations of cores that programmers can directly address.
+
+### A note on terminology
+In order to do this, we need to create terminology for each stage of the process.
+Keep in mind that each stage of this process also has it's own memory associated with it.
+Threads have memory.
+Groups of threads have more memory.
+GPUs, in general, have memory.
+Unfortunately, the naming conventions here get a little screwy and depend on which programming interface you are using, so let's write it all down.
+
+| Hardware concept | CUDA terminology | KernelAbstractions Terminology |
+| ---------------- | ---------------- | ------------------------------ |
+| Core             | Thread           | WorkItem                       |
+| Core memory      |                  |                                |
+| Group of cores   | Block            | WorkGroup                      |
+| Group memory     | Shared           | Local                          |
+| All cores        | Grid             | NDRange                        |
+| All memory       | Global           |                                |
+
+To be clear: KernelAbstractions terminology is largely inspired from OpenCL.
+In this case `NDRange` means an $$N$-dimensional range to iterate over.
+At this stage, it's probably a little confusing and overwhelming, so it might be good to refer back to this table as we have more practical examples.
+
+To keep all this straight, it is important to think about this from the thread's perspective.
+Each thread has access to:
+
+1. A small memory bank to hold local data. This is often called "local memory."
+2. A slightly larger memory bank to hold data of all threads running at the same time in a "block". This is called "Shared memory."
+3. An even larger memory bank that holds all available GPU memory. This is called "Global" memory.
+
 Mention that we can use CUDA.jl or AMDGPU.jl
+
 
 ## Loop vectorization
 
@@ -926,5 +980,15 @@ The most popular language for GPGPU today is CUDA, and it uses kernels exclusive
 I love broadcasting, but acknowledge it is essentially never used outside of niche applications.
 A lot of computer scientists still believe loops are the answer.
 But if we are looking at the numbers, it's incredibly clear that kernels have won the GPU abstraction wars, and for good reason.
+Kernels are more flexible than loops and are often more straightforward to write and integrate into a pre-existing software project.
+Loops exist as a olive branch to traditional CPU programmers who are unwilling to change their code to better reflect the world around them.
+
+## On abstraction levels
+
+This chapter has focused entirely on software abstractions that allow programmers to more easily write code that will eventually execute on GPU hardware.
+
+Are kernels truly "lower level"?
+I mean, you ultimately need the same GPU knowledge to write loop-based code, so no?
+It's just that people who are not used to GPU computation already know loops and feel they are the best abstraction.
 
 In the following chapters, we will begin to dive deeply into all the different things we can do with GPU kernels, starting with the most trivial stumbling block: summation.
