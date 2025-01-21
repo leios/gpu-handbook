@@ -434,7 +434,7 @@ Now for a few quick exercises to make sure we understand everything:
 
 When it comes to GPU computation, there is a single problem that every single person does to make sure their code is working as intended.
 It is so common, that the problem is often called the "'Hello World!' of GPU computation.
-That problem is vector addition, the act of adding two vectors together.
+That problem is vector addition, the act of adding two vectors (lists of numbers) together.
 Let's do it with broadcasting.
 
 ```
@@ -840,30 +840,112 @@ When you need true flexibility or better performance, there is no better abstrac
 
 ## GPU Functions: Kernels
 
-To recap, we have introduced a language abstraction, known as *broadcasting*, that can be used out-of-the box in Julia for great GPU performance in most cases.
+To recap, we have already introduced a language abstraction, known as *broadcasting*, that can be used out-of-the box in Julia for great GPU performance in most cases.
 We also walked through a simple example that used broadcasting to show the power of GPU computing with a 1000 times speed-up (on my hardware, at least) when compared to single-core CPU execution.
-At this point in time, we've got some vague notion of how GPU execution works and what problems it's suited for, but now it's time to talk about the most common abstractions programmers use for GPU programming: kernels.
+This means that we should have some vague notion of how GPU execution works and what problems it's suited for, but now it's time to talk about the most common abstraction used for GPU programming: kernels.
 
-In GPU programming, a *kernel* is a function specifically written to be run on the GPU.
-For graphics, there is sometimes a different type of function that can be written with more specific limitations.
-These functions are often called *shaders* instead (as one of their primary purposes is to shade or color pixels on a screen), but I am getting ahead of myself here.
-We'll talk about those when we get to them.
-For now, let's talk kernels.
-
+In GPU programming, a *kernel* is a function specifically written to be run on the GPU for some computational task.
 In principle, the only difference between a kernel and a regular function is that kernels are meant to run in parallel on each core
-in principle, this means that every core will run the *same, exact* function at the same time, but there's a catch.
-Keep in mind that a lot of GPU computation will require more units of computation than there are cores.
+This means that every core should run the *same, exact* function at the same time, but there are a few caveats to mention.
+For one, keep in mind that a lot of GPU computation will require more units of computation than there are cores.
 For example, a high-definition image might have 1920 x 1080 pixels in it.
-If each pixel is handled by a single core, then we would need 2,073,600 cores to do the computation.
+If the shading of each pixel is handled by a single core, then we would need 2,073,600 cores to do the computation.
 Unfortunately, the fastest GPUs in the world only have on the order of 5000 cores.
 So what do we do?
-Well, *we* don't really worry about that and instead let a scheduler run stage the computation to happen in large groups of cores in parallel.
+Well, *we* don't really worry about that and instead let a scheduler stage the computation to happen in groups of cores in parallel.
 
 Keep in mind that kernels are abstractions.
-They are purposefully hiding information from users to make it easier to program.
+They are purposefully hiding information from users to make programming easier.
 In this case, users shouldn't need to think about the exact mechanics of scheduling on the GPU and can instead focus on writing down the specific computation that each core should perform.
-Because programmers (like myself) like to be pedentic, they will often distinguish the terms a bit here.
-Instead of talking about "cores," which are pieces of hardware, we often talk about "workitems" (or "threads" for CUDA), which are abstract representations of cores that programmers can directly address.
+That said, programmers (like myself) are sometimes pedentic and will often distinguish the terms a bit here.
+Instead of talking about "cores," which are pieces of hardware, we often talk about "work items" (or "threads" for CUDA), which are abstract representations of cores to later be scheduled on to cores.
+To be clear, every work item corresponds to some core performing that computation, but we are letting the compiler choose *which* core each work item will run on.
+
+I think that's enough background info for now.
+Let's get to writing some kernels.
+To be clear, each GPU backend (CUDA, AMD, Metal, oneAPI) all provide their own kernel interfaces that work in Julia, but we will be using KernelAbstractions for this work, so we need to start by adding that package.
+Start by pressing `]` and then enter to enter package mode. Then:
+
+```
+(@v1.10) pkg> add KernelAbstractions
+```
+
+Press enter.
+Install the library.
+Now we are ready to write our first GPU kernel.
+
+### Vector addition, but this time with kernels.
+
+I said it before and I'll say it again, "vector addition is the 'hello world!' of GPU programming."
+It's one of the simplest units of computation that can be done on the GPU to test functionality.
+So, let's start by writing down a function that might add two numbers together:
+
+```
+function add(c, a, b)
+    c = a + b
+end
+```
+This should (hopefully) be simple enough to understand.
+
+We now need to transform this function to work on each GPU workitem (core).
+To do this, we will need to change a few things:
+1. We need to add `using KernelAbstractions` to the start of our script.
+2. We need to add the `@kernel` macro to the start of our function.
+3. Because our function should operate on vectors, we need to reflect that in the code, itself, and create a variable to index `a`, `b`, and `c`. This might look like `idx = @index(Global)`, where `Global` signifies that we are pulling from all globally available threads.
+4. We need to add that index value to the array accesses.
+
+All together:
+
+```
+using KernelAbstractions
+
+@kernel function add(c, a, b)
+    idx = @index(Global)
+    c[idx] = a[idx] + b[idx]
+end
+```
+
+And that's the whole function.
+Now we just need to run it.
+This is generally done in 3 steps:
+1. Configure all the input variables. In this case, it would mean making sure that `a`, `b`, and `c` are all of the appropriate array type for runnig the code on the GPU.
+2. Configure the kernel. This is done by first getting the right backend (for example, AMD, NVIDIA, Metal, etc), and then running the kernel with that backend as a function argument, so `kernel = add(get_backend(a))`.
+3. Run the kernel with the appropriate arguments, so `kernel(c, a, b, ndrange = length(a))`. Here `ndrange` is an $$n$$dimensional range of values to index over. In this case, as long as `a`, `b`, and `c` are all the same length, we could set the range to be the `length(...)` of any of the three.
+
+Putting all of that together:
+
+```
+a = ArrayType(rand(10))
+b = ArrayType(rand(10))
+c = similar(a)
+
+backend = get_backend(a)
+kernel = add(backend)
+kernel(c, a, b; ndrange = length(a))
+```
+
+Actually, now is a perfect time to test our results, so let's do that by comparing the results to broadcasting:
+
+```
+using Test
+
+@test c == a .+ b
+
+```
+
+Running this should return `Test Passed` into the REPL.
+And...
+There you have it!
+Your first GPU kernel!
+
+Take a second to breath and pat yourself on the back a bit.
+At this point in time, you have taken a bold step into the world of GPU computing.
+There are a lot of specifics to talk about from here, but for many tasks, this level of GPU understanding is already enough to start seeing some benefits from GPU programming.
+That said, there is still a lot left to do, so I do hope you keep reading to learn more.
+
+!!! todo "Problem 8: Do it on your machine"
+    In case you haven't done it already, it is important to do this exercise on your own machine to make sure you understand how everything is put together.
+    Basically, add `a` and `b` and make sure the results match what you expected from the broadcasting results.
 
 ### A note on terminology
 In order to do this, we need to create terminology for each stage of the process.
