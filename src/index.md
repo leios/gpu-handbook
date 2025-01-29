@@ -1,4 +1,4 @@
-# What's going on?
+# What's Going On?
 
 When I started my PhD in 2014, it was fairly uncommon for programmers to use their Graphics Processing Unit (GPU) for any computation beyond what was necessary for gaming or some graphical applications.
 The world has changed since then.
@@ -10,7 +10,7 @@ Everyone needs the GPU for *something*.
 
 At the same time, there are very few good learning resources available to teach beginner programmers how to properly use their hardware.
 So that's what this book is.
-A gentle introduction to most of the programming concepts necessary to understand GPU computing through meaningful real-world applications.
+It is a gentle introduction to most of the programming concepts necessary to understand GPU computing through meaningful, real-world applications.
 
 All of the content on this site was created by [James Schloss (Leios)](https://github.com/leios).
 The code is released under the MIT license, which means you can use it for virtually any purpose as long as you attribute me and you let everyone know that my code is freely available under the MIT license for use.
@@ -22,6 +22,7 @@ Namely, the new (derivative) work:
 3. Must be available for free with the same Creative Commons license. In other words, derivatives of derivatives of this work cannot make money and also must attribute me (and any additional authors).
 
 **if this book is useful for you, please consider purchasing it when it is officially released**.
+If you would like to purchase the book, please let me know [here](https://forms.gle/MAy3wZY3dy5NiymbA).
 Otherwise, please let me know if there are any typos, errors, or jank that you find along the way.
 
 Thanks for reading and I hope the book helps you in some way!

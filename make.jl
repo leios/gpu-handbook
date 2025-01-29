@@ -8,6 +8,7 @@ makedocs(
         "Reviewer Guidelines" => "content/reviewers.md",
         "About the Author" => "content/about_me.md",
         "Introduction" => "content/intro.md",
+        "All the Ways to GPU" => "content/abstractions.md",
     ],
 )
 
