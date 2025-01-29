@@ -1,23 +1,32 @@
 # All the Ways to GPU
 
-An abstraction is a metaphorical device used to make a complex task simpler to understand.
+At the end of the day, GPUs are pieces of hardware.
+Complicated pieces of hardware.
+In fact, GPUs (and modern CPUs) are so complicated that it would be nearly impossible for an individual to directly write down a set of instructions for the hardware to run.
+Instead, users write code in some human-readable language like C, Rust, or Julia, which will then be translated to some other language, and then (often times) another language again and again until it becomes the final instruction set that their hardware can execute.
+This process is known as compilation.
+As a rule of thumb, the easier it is to read and write in a programming language, the more difficult the compilation process will be.
+
+At every layer of compilation, we are further simplifying the translation process through software abstractions.
+Simply put, an abstraction is a metaphorical device used to make a complex task easier to understand.
 We use abstractions *everywhere* in programming.
 Examples include: `for` and `while` loops, functions, structures and classes, etc.
 Basically every common programming device we use is an abstraction of some form.
-In this chapter, I will introduce many common abstractions that can be used to perform GPU computation, but let's start at the start...
+In this chapter, I will introduce many common abstractions that can be used  to perform GPU computation, but let's start at the start.
 
 ## Installation
 
-As mentioned in the introduction, we will be using the Julia language for this book, so the first step would be to install Julia.
+As mentioned in the introduction, we will be using the Julia programming language for this book, so the first step is to install Julia.
 It is important to note that this book is intended for those who already have some (at least limited) familiarity with programming.
 As such, I will keep the installation instructions brief.
-If you are already used to programming, you probably already have your own preferred development workflows all sorted out and will just google for similar solutions with Julia.
+If you are already used to programming, you probably already have your own preferred development workflows all sorted out and can just google for similar solutions with Julia.
 
 For most users, installation involves going to the website [https://julialang.org/downloads/](https://julialang.org/downloads/) [^1] and following the instructions.
-For most users, this means that you will need to open up the terminal (or shell on Windows) and run the provided command.
-Once you have Julia installed, you then need to decide how you want to edit your code:
+This usually involves opening up the terminal (or shell on Windows) and running the provided command.
+With Julia installed, the next step is decide how to edit code.
+There are generally two options here:
 
-1. With text editors. This means you will use your text editor of choice (for example: vim, nano, notepad++) and then manage all of your code on your own. You might want to google around for most common options with Julia.
+1. With text editors. This means that you will use your text editor of choice (for example: vim, nano, notepad++) and then manage all of your code on your own. You might want to google around for most common options with Julia.
 2. With development environments. These are collections of all the things programmers typically need for development packaged into one graphical interface. The most common one for Julia is VSCode, with full installation instructions found here: [https://code.visualstudio.com/docs/languages/julia](https://code.visualstudio.com/docs/languages/julia)[^2].
 
 Keep in mind that if you are *not* using Julia and have instead decided to rewrite the code in this book in another language, the installation might be significantly different and potentially more complicated.
@@ -25,19 +34,19 @@ Keep in mind that if you are *not* using Julia and have instead decided to rewri
 [^1]: https://julialang.org/downloads/
 [^2]: https://code.visualstudio.com/docs/languages/julia](https://code.visualstudio.com/docs/languages/julia
 
-## Your first GPU Array
+## Figuring out your hardware
 
 Now that we have Julia installed, we can start using our GPU!
 As I discussed in the introduction, the current state of GPU programming is (unfortunately) quite fragmented, so the first step is to identify the hardware on your system.
 Ideally, you already know this information (because you bought or built your own computer and can look at the specifications), but here's some hints to figure out what you have depending on your operating system:
 
-* **Windows**: Go to the "Device Manager" and look under "Display Adaptors", where you should find the manufacturer of your GPU.
-* **Mac**: Go to "About this Mac". If it says you are running an "Apple M$$x$$" chip, where $$x$$ is some number, then you can use your Apple Silicon GPU.
+* **Windows**: Go to the "Device Manager" and look under "Display Adapters", where you should find the manufacturer of your GPU.
+* **Mac**: Go to "About this Mac". If it says you are running an "Apple M$$x$$" chip, where $$x$$ is some number, then you can use your Apple Silicon GPU. Otherwise, there might some other GPU shown there.
 * **Linux**: To be honest, there are a bunch of different ways to figure out what hardware you are running, so feel free to google and use your preferred method. My go-to is always `lspci | grep "VGA"`, which will tell you what GPUs you have.
 
 In the case you have more than one GPU available, feel free to use whichever one you want (or all of them).
 If you do not have a usable GPU, that is totally ok!
-Instead, you can use your CPU with Julia's basic `Array` type.
+You can use your CPU instead for almost everything in this book.
 
 If you could not figure out whether you have a usable GPU at this stage, that's also totally fine.
 We can use Julia to figure out which packages will work on your machine.
@@ -54,14 +63,14 @@ For now, let's talk about the Julia packages available for your hardware:
 | Apple Silicon      | Metal             | MtlArray   |
 
 Keep in mind that the package names here follow the naming conventions for the traditional software tooling of your hardware.
-Julia's package for NVIDIA GPUs is `CUDA`, because it is essentially a wrapper for CUDA (A C language extension for NVIDIA GPU tooling) in Julia.
+Julia's package for NVIDIA GPUs is `CUDA`, because it compiles down to the same thing as CUDA (a C language extension for NVIDIA GPU tooling), but does so in Julia.
 At this point, if you already know your GPU hardware, simply install the relevant package by using the following commands:
 
 1. `julia`: This will open the Julia shell (called the REPL, which stands for "Read, Evaluate, Print, and Loop"). You should see an ASCII Julia logo appear and then a green `julia>` prompt.
-2. Press the `]` key: This will open up the package manager and change the prompt to something like `(@v1.10) pkg>`. It will also change the color to blue.
-3. `add GPUBackend`: Where `GPUBackend` is the appropriate package. For example, I have an AMD GPU, so I will `add AMDGPU`. If I were runnig an M2 mac, I would `add Metal`. If I had an NVIDIA GPU, I would `add CUDA`. Keep in mind that this might take some time because it's installing a lot of GPU driver magic in the background.
+2. Press the `]` key: This will open up the package manager and change the prompt to something like `(@v1.10) pkg>`. It will also change the color of the prompt to blue.
+3. `add GPUBackend`: Where `GPUBackend` is the appropriate package listed in the table above. For example, I have an AMD GPU, so I will `add AMDGPU`. If I were running an M2 mac, I would `add Metal`. If I had an NVIDIA GPU, I would `add CUDA`. Keep in mind that this might take some time because it's installing a lot of GPU driver magic in the background.
 4. Press backspace: This will leave the package manager
-5. `using GPUBackend`: This will load the package in the Julia REPL. This might take a second as it's compiling everything for the first time.
+5. type `using GPUBackend`: Remember that `GPUBackend` is the package you need for your specific hardware. This will load the package in the Julia REPL. This might take a second as it's compiling everything for the first time.
 6. `GPUBackend.functional()`: This will test to make sure the package will work on your machine. It *should* return `true` if you have the right hardware available.
 
 If `GPUBackend.functional()` returns `false`, then there is something wrong with the configuration.
@@ -86,7 +95,7 @@ That is absolutely no problem for the purposes of this text, as you can simply u
     false
     ```
     Here, I have a working AMD GPU, but none of the other vendors will work.
-    I omitted a few error messages that appeared on my machine when `using Metal` and `using oneAPI` as not all users will experience those errors. They both informed me immediately that my hardware was not supported, so I did not need to run `.functional()` on those packages.
+    I omitted a few error messages that appeared on my machine when `using Metal` and `using oneAPI` as not all users will experience those errors. Both of these packages informed me immediately that my hardware was not supported, so I did not need to run `.functional()` on those packages (but I did anyway for clarity).
     
     After you have found the appropriate package on your machine, feel free to remove the unnecessary ones with:
     
@@ -100,33 +109,28 @@ That is absolutely no problem for the purposes of this text, as you can simply u
     julia> using Pkg
     julia> Pkg.add("GPUBackend")
     ```
-    Where `GPUBackend` comes from the table above.
+    Where `GPUBackend` comes from the table above. There are a few situations where it just makes more sense to use the `Pkg` package instead of entering package mode with `]`.
 
 !!! note "Reviewer Notice"
     I actually think the `using Pkg` method is more straightforward for beginners. Should we do that one by default and have a separate tip to explain the `]` package management mode?
     
     I introduced `]` first because (let's be honest) that's how the majority of people interface with the package manager; however, `using Pkg` is necessary for scripts and CI, so it is also important to know.
-    
-One core difference between CPU and GPU programming is in how users think about the code.
-For the CPU, users typically think about the number of operations each core is performing.
-Though you still need to consider this with the GPU, calculation speed is often not a huge bottleneck to GPU performance.
-Instead, GPU programmers need to think about data flow.
-That is, where the your memory is in GPU memory.
 
-As a rule of thumb, the slowest part of any computation is communication -- specifically communication between the CPU and GPU, but also communication with different types of memory on the GPU.
-We'll be discussing the latter case in more detail with specific examples later.
-For now, let's just create an array and pass the data to the GPU.
+## Your first GPU array
+ 
+Alright, we've chosen our appropriate package.
+Now let's create an array and pass the data to the GPU.
 
 ```
 julia> a = zeros(10, 10)
 julia> b = ArrayType(a)
 ```
 
-Lot's of things to talk about.
+There are a lot of things to talk about.
 `zeros(...)` is a Julia method to create an array that is all 0 of a particular size. Here, it's 10 by 10.
 This command will create an `Array` object whose memory exists "on the CPU".
 More accurately, the memory will sit on the motherboard RAM, a convenient location for CPU operations.
-We then need to send that data to the GPU with `ArrayType(a)`.
+We then need to send that data to the GPU by casting it onto the appropriate array type for our hardware with `ArrayType(a)`.
 Here, `ArrayType` is the array type from the table above.
 For example, those with an AMDGPU would use `ROCArray`.
 Those with an NVIDIA GPU would use `CuArray`.
@@ -136,49 +140,73 @@ It is important to note that the command `ArrayType(a)` is actually doing two th
 1. Allocating the appropriate space on the GPU
 2. Copying the data from the CPU to GPU.
 
-In Julia, these two steps are often coupled, but the don't need to be.
-We could have created the same GPU array by running:
+In Julia, these two steps are often coupled, but they don't need to be.
+For instance, In CUDA (C) a user might use both a `cudaMalloc(...)` and `cudaMemcpy(...)`.
+In Julia, we could also avoid the memory transfer and create the array directly on the GPU with:
 
 ```
 b = GPUBackend.zeros(10,10)
 ```
 
 This would avoid the (relatively) costly communication between the CPU and GPU.
-Most of the array creation routines (such as `rand(...)`, and `ones(...)` have similar routines for each backend for simplicity.
+In fact, most of the array creation routines (such as `rand(...)`, and `ones(...)` have similar routines for each backend for simplicity.
 
 !!! tip "A note about Macs"
     If you are running a Mac, you might not have been able to create your array on the GPU.
-    This is because Metal (the API used for GPU computation on Apple Silicon) only supports single precision (`Float32` for example).
+    This is because Metal (the API used for GPU computation on Apple Silicon) only supports single precision (`Float32` and `Int32` for example).
     So to create the necessary array on a mac, specify the type for `zeros(...)` first, like so:
     ```
-    julia> a = zeros(10, 10)
-    julia> b = MtlArraya)
+    julia> a = zeros(Float32, 10, 10)
+    julia> b = MtlArray(a)
 
     ```
+
+Now, depending on your machine, you might have had to wait a few seconds to generate your initial array.
+What gives?
+Isn't GPU computing supposed to be fast?
+Why do we need to wait around all the time?
+
+Well, one core difference between CPU and GPU programming is in how users think about the code.
+On the CPU, users typically think about the number of operations each core is performing.
+Though this is still important with the GPU, calculation speed is often not the biggest bottleneck to GPU performance.
+Instead, GPU programmers need to think about data flow, where data is in GPU memory.
+As a rule of thumb, the slowest part of any computation is communication -- specifically communication between the CPU and GPU, but also between different memory banks within the GPU, itself.
+This has a large number of implications that we will discuss in later chapters.
+
+Even so, the transfer time of data for a relatively small array (like this one) *should* still be around a millisecond or two.
+My guess is that most users felt a significant delay of about a second or two when they created their first array.
+As a quick test, try to do the same command again (`ArrayType(a)`).
+This time, it should be really fast.
+The truth is that there is another, more important reason why the first array took so long to build.
+Let's talk about...
 
 ### Expected performance from Julia
 
-Ok, it's important to talk about some pitfalls to using Julia.
-After the installation, there are probably two distinct groups of people:
+It's time to be upfront about one of the core weaknesses of Julia.
+At this stage, there are probably two distinct groups of people:
 
-1. Those that are new to GPU programming: These people are probably scratching their head at all the new, unnecessary packages. After all, they just want to use their GPU! Why do they need to think so deeply about their hardware?
-2. Those who have attempted GPU programming before. These people are probably amazed at how easy the installation was. Julia *just did everything for us* in a way that seems like magic!
+1. Those that are new to GPU programming. These people are probably scratching their head at all the new, unnecessary packages. After all, they just want to use their GPU! Why do they need to think so deeply about their hardware?
+2. Those who have attempted GPU programming before. These people are probably amazed at how easy the installation was. Julia *just did everything for us* in a way that seemed like magic!
 
 There is a little truth to both of these claims.
 Yes, Julia does a lot of the heavy lifting for the user.
 And yes, there is still a lot of jank we are trying to get rid of.
 
-But there's another (potentially ill-formed) thought that might be lurking in the back of your mind, "If all these Julia packages are just wrappers to C, why not use C instead? Won't we get a performance penalty for using Julia in this case?"
+But there's another (potentially ill-formed) thought that might be lurking in the back of your mind, "If all these Julia packages are just wrappers to C, why not use C instead? Won't we get a performance penalty for using Julia here?"
 
 That's a very good question, and it's difficult to fully explain.
 Long story short, Julia boils down to the same lower-level representation as C (if you are using the clang compiler), so it should be equivalently fast.
-It can also call C code without any performance penalty, so the wrappers should be equivalently fast.
-But there is a cost!
-In fact, you have already experienced it.
+It can also call C code without any performance penalty, so the wrappers to C should be equivalently fast.
+That said, we do need to draw a thin line in the sand here.
+In the case of GPU computing, we are not comparing ourselves to C, but CUDA (or Metal, AMD, etc).
+The lower-level representation of GPU languages are all *slightly* different than that of C.
+This means that in the case of GPU computing, we are actually asking Julia to do a lot.
+It has to dynamically determine our hardware, compile the Julia code into some intermediate representation, then spit out even lower level code that is distinct for each hardware vendor, all while maintaining the features that make Julia easy to use for beginners.
 
-When you ran `using GPUBackend` and `ArrayType(a)` above there was some noticeable delay while Julia was getting the code up and running (precompiling).
-If you run the same commands again, they should be super fast.
-Let's check this out with the `@time` macro provided by your GPU backend:
+When we put it all together, the compilation time for the JuliaGPU ecosystem can sometimes be much higher than for many other GPU languages.
+To be clear, we usually call compilation "**pre**compilation" in Julia because the translation happens dynamically (immediately after Julia can statically know what all the types are when the user runs their code).
+Let's try to quantify our precompilation cost a bit by re-running the code with the `@time` macro:
+
 
 ```
 julia> a = zeros(10,10);
@@ -201,26 +229,24 @@ julia> AMDGPU.@time ROCArray(a);
   0.000370 seconds (12 allocations: 368 bytes)
 ```
 
-The second run was literally 4,500 times faster! Also take a look at the information in parentheses.
+The second run was literally 4,500 times faster!
+It's important to also look at the information in parentheses.
 The first run had 7.35 million allocations and spent 85% of it's time precompiling.
-The other roughly 15% of time was spent on garbage collection.
+The other roughly 15% of time was spent on garbage collection (cleaning up unnecessarily allocated memory).
 The second run had 12 allocations and no time at all on garbage collection or precompilation.
+It was also less than a millisecond.
 
-It is really important to keep in mind that Julia can (and should) get comparable performance to C in most cases, but you need to give it a second to precompile everything first.
+It is really important to keep in mind that Julia can (and should) get comparable performance to C in most cases, but we need to give it a second to precompile everything first.
 Even though many people in the Julia community are working on decreasing precompilation time, it is unlikely that this will go away entirely any time soon.
 If your specific GPU project requires fast recompilation regularly (which is the case for some graphics workflows), then you might need to take the lessons from this book and translate them into another language in the future.
 
-That said, I truly believe that Julia provides the most flexible ecosystem for most GPU workflows and should be a greate starting language for any GPU project.
+That said, I truly believe that Julia provides the most flexible ecosystem for most GPU workflows and should be a great starting language for any GPU project.
 In particular, it is the only language that provides so many different abstractions for doing GPU computation.
-It's time to talk about them in detail, starting with...
+Speaking of which, it's time to talk about them in detail.
 
-## Array-based operations
+## I have a GPU array. Now what?
 
-Ok, now we have a GPU Array. What can we do with that?
-Well, a lot actually, but let's start with the basics.
-
-### Indexing
-
+Well, there are a lot of things we can do, actually, but let's start with the basics: indexing.
 Indexing is the act of accessing array memory one element (index) at a time.
 On the CPU, you might create an array, `a`, and get the first index with `a[1]`.
 It might be reasonable to assume that similar logic would work on the GPU, so let's try it:
@@ -259,17 +285,17 @@ What does "scalar indexing" even mean?
 
 Simply put, scalar indexing is the act of accessing an array one element at a time, for example `a[1]`, `a[2]`, or `a[i]`, where `i` is some integer value.
 As to why this is not allowed on the GPU, well... there are a bunch of factors all working against each other to make scalar indexing difficult.
-Remember, the GPU is a separate device that is built to solve a lot of simple operations at the same time.
-This means that:
-1. GPU memory is not "on the CPU", so we can't display it without first transferring it to the motherboard RAM. We could display a single element of `b` (with `b[1]`) if we were to first transfer it back to the CPU with `Array(b)`
-2. The GPU is not meant to do only one thing, but a bunch of things at once. When we are asking the GPU to display a single element with `b[1]`, we are doing something incredibly inefficient from the GPUs perspective.
+Remember, GPU memory is not "on the CPU."
+When we run `a[1]`, we are asking Julia to display that data in the REPL, but we can't do that without first transferring it to the motherboard RAM.
+With this scalar indexing error, Julia is asking us to be doubly sure that this is, in fact, what we want to do because (again) communication is slow.
+If we are absolutely sure that we want to display the first element of `b`, then it is best to be more explicit and first transfer the data back to the CPU with something like `Array(b)[1]`, where `Array(b)` will transfer the data, and the `[1]` at the end will access the first element of the newly created CPU-based array.
 
-Item 2 is the reason why GPU backends in Julia do not allow users to access GPU arrays one element at a time.
+It's also important to remember that GPUs are intended to do a lot of things in parallel.
+This power is lost completely if we ask Julia to deal with only a single element at a time.
 Simply put, if users are using the GPU one index at a time, it's going to be really, really slow, so we need to do what we can to discourage that behaviour whenever possible.
-If you find yourself in a situation where you need only a single element of a GPU array, then it is best to first tranfer it to a CPU array before doing anything with the data.
 
 !!! tip "But what if I *really* need scalar indexing"
-    Keep in mind that if you *really* need to access a single element of a GPU array, you can do it by first setting the `allowscalar` flag `true` (and then turning it off again afterwards):
+    Keep in mind that if you *really* need to access a single element of a GPU array and do not want to transfer the data to the CPU first, you can do it by first setting the `allowscalar` flag `true` (and then turning it off again afterwards):
     ```
     julia> GPUBackend.allowscalar(true)
     ┌ Warning: It's not recommended to use allowscalar([true]) to allow scalar indexing.
@@ -308,14 +334,15 @@ For example, CUDA and OpenCL focus almost exclusively on user-defined GPU functi
 SyCL and Kokkos focus on loop vectorization.
 Julia is unique in that all three of these major abstractions are deeply ingrained into the ecosystem as a whole and play very nicely not only with each other, but the broader Julia ecosystem.
 
-If you are planning on rewriting all the code in ths book with another language, it might be a good idea to first jump to the abstraction that works well in the language you have chosen and then come back to the other sections as needed.
-For now, I intend to cover things in the order that feels most intuitive for GPU computation, starting with...
+If you are planning on rewriting all the code in this book with another language, it might be a good idea to first jump to the abstraction that works well in the language you have chosen and then come back to the other sections as needed.
+For now, I intend to cover things in the order that feels most intuitive for GPU computation in Julia, starting with...
 
 ### Broadcasting
 
 Ok.
 I get it.
-Most programmers have probebly never used broadcasting.
+Most programmers have probably never used broadcasting.
+Many have probably never heard of it before now.
 Before using Julia, I certainly hadn't.
 So let's start at the start.
 
@@ -355,10 +382,10 @@ julia> a .+= 1
 
 In Julia, the `.` before some command indicates to the compiler that the user would like to broadcast the command to all elements of an array.
 So, these lines:
-1. Created an array of ten zeros, called `a`.
+1. Created an array (`Vector`) of ten zeros, called `a`.
 2. Broadcasted the `+= 1` command to each element of the array, indicated with `.+= 1`
 
-As long as you are can write your GPU code as broadcasted operations, it should be possible to execute that code on the GPU.
+Now for some Julia magic: as long as you are can write your GPU code as broadcasted operations, it should be possible to execute that code in parallel on the GPU.
 For example, the following will also work:
 
 ```
@@ -384,6 +411,10 @@ julia> a .+= 1
 And there you have it!
 You've just executed your first function on the GPU.
 But we probably want to do things way more complicated than just adding one to every element of an array, so let's look at a few quick examples of broadcasting in practice.
+
+!!! tip "What's up with the semicolon (`;`)?
+    In the Julia REPL, you can add a semicolon (`;`) to the end of a line if you do not want to show the output immediately.
+    I'll be using this throughout the book to make the text a little more clear to read.
 
 #### Adding one to every odd element
 
@@ -419,10 +450,10 @@ And that's that.
 Now for a few quick exercises to make sure we understand everything:
 
 !!! todo "Problem 1: Do it on the GPU"
-    Do what we just did on your GPU backend. In other words, change the array type of `a` to your `ArrayType` and add one to every other element
+    Do what we just did on your GPU backend. In other words, change the array type of `a` to your `ArrayType` and add one to every other element.
 
 !!! todo "Problem 2: Subtract 1 from every even element"
-    Create some broadcast operation that will subtract one from every even element
+    Create some broadcast operation that will subtract one from every even element.
 
 !!! todo "Problem 3: Square each element of the array"
     For context, `x^y` is the math operator in Julia to "raise some number (`x`) to the power of some other number (`y`).
@@ -479,21 +510,22 @@ julia> c = a .+ b
 ```
 
 So there's a lot to unpack here.
-Firstly, broadcasting can work in general on the right-hand side of any math equation.
+Firstly, broadcasting can work in general on the right-hand side of any math equation (here shown with the `.+` between `a` and `b`)..
 Secondly, `rand(...)` works the same way as `zeros(...)` or `ones(...)`.
-Right now that might seem trivial, but random numbers are actually a little hard to right on GPUs, so we'll talk about that in a little more depth later.
-Thirdly, it's important to note that `a` and `b` must be the same size for this to work, so make sure that's true before brodcasting operations to more than one array.
+Right now that might seem trivial, but random numbers are actually a little hard to do on GPUs, so we'll talk about that in a little more depth later.
+Thirdly, it's important to note that `a` and `b` must be the same size for this to work, so make sure that's true before broadcasting operations to more than one array.
 
 But there's a more subtle point here that many people might have missed, and it has to do with the third command, `c = a .+ b`.
 Simply put, `c` did not exist before running the command!
-This means that we have created a new array for the sole purpose of adding `a` and `b`.
+This means that we have created a new array for the sole purpose of outputting the results of  `a .+ b`.
 
 Though this might not seem particularly noteworthy on the CPU, it actually has large implications for the GPU.
-Remember that the slowest part of most computation is memory management, and here, we have allocated space for and assigned the values of a random array without even considering the consequences to performance!
+Remember that the slowest part of most computation is memory management, and here, we have allocated space for and assigned the values to a random array without even considering the consequences to performance!
+Allocation takes time!
 If at all possible, we want to minimize the number of times we create new arrays.
 
 So how might we rewrite things so that we don't unnecessarily allocate `c`?
-Well, the simplist solution is to allocate it at the same time as `a` and `b` and then use `.=` instead of `=`:
+Well, the simplest solution is to allocate it at the same time as `a` and `b` and then use `.=` instead of `=`:
 
 ```
 julia> a = rand(10);
@@ -505,7 +537,7 @@ julia> c = similar(a);
 julia> c .= a .+ b
 ```
 
-Here, we use `similar(a)`, which will create an array that is the same size and shape of `a`, which should (hopefully) also be the same size and shape of `b`.
+Here, we use `similar(a)`, which will create an array that is the same size, shape, and type as `a`, which should (hopefully) also be the same size, shape, and type as `b`.
 The data in `c` from `similar` will be just whatever junk was in memory at the time and won't necessarily be all zeros or anything.
 That shouldn't matter because `c` is used exclusively for output, so there's no reason to invoke `rand(...)` if we don't need it.
 
@@ -519,7 +551,7 @@ Remember that data flow *really* matters with GPU computation, so it's doubly im
 
 A quick note.
 I would like to believe that *every single Julia programmer* has been tripped up by the difference between `=` and `.=`.
-I certainly have torn my own hair out late in the evening, trying to figure out why the performance of my code is so slow, only to realize I forgot a single `.`, and was accidentally allocating a bunch of memory I didn't need to.
+I certainly have torn my own hair out late in the evening, trying to figure out why the performance of my code is so slow, only to realize I forgot a single `.`, which meant that I was accidentally allocating a bunch of memory I didn't need to.
 It happens to the best of us, which is why I am pointing it out now while you are young and impressionable.
 Julia syntax sometimes looks sleek, but there's a lot of power under-the-hood, so it is wise to take a second and make sure every line is actually doing what you want. 
 
@@ -527,22 +559,21 @@ I think that's it for now.
 On to some problems.
 
 !!! todo "Problem 4: Try to add arrays of different sizes"
-    ... and see the error message
+    ... and see the error message.
 
 !!! todo "Problem 5: Do it on the GPU"
-    Create three arrays, `a`, `b`, and `c`, all of type `ArrayType` for your specific GPU backend. Add `a` and `b` together and write them to `c`.
+    Create three arrays, `a`, `b`, and `c`, all of type `ArrayType` for your specific GPU backend. Add `a` and `b` together and output them to `c`.
     You may create `a`, `b`, and `c` in any way you wish, but it might be more interesting to use `ones(...)` or `rand(...)` instead of `zeros(...)` because $$0 + 0 = 0$$.
 
 !!! todo "Problem 6: Add the first five elements of `a` to the last five elements of `b`"
     Create custom ranges so you can add one through five of `a` to five through ten of `b`.
     Remember that your output array (`c`), should be five elements this time!
 
-
 #### Broadcasting generic functions
 
 Until now, we have been broadcasting pre-defined Julia functions (mainly math operations), but what if we wanted to broadcast our own (user-defined) functions?
 Well, let's do that.
-Let's say we wanted to get ten numbers between one and one-hundred.
+Let's say we wanted to find ten numbers between one and one-hundred.
 We might create a function that looks like this:
 
 ```
@@ -573,7 +604,7 @@ julia> f.(a)
 
 ```
 
-Here, we've used the `.` operator to signify that we want the function broadcasted along all elements of the first argument of `f`.
+Here, we've used the `.` operator to signify that we want the function broadcasted along all elements of the argument of `f`.
 So let's create another function to do the vector addition from the previous section:
 
 ```
@@ -609,19 +640,19 @@ functon g(a, b)
     return a + b
 end
 ```
-Feel free to explore if you want.
-In fact, I actively encourage it.
+Feel free to explore different ways to do this if you want.
+In fact, I actively encourage you to do so.
 
-For now, let's wrap everything we've learned about broadcasting into a worked example tha also shows off some of the power of GPU computing.
+For now, let's wrap everything we've learned about broadcasting into a worked example that also shows off some of the power of GPU computing.
 
 !!! note "Reviewer Notice"
-    I am thinking of replacing this section with something else.
+    I am thinking of replacing this upcoming section with something else that is potentially more interesting.
     Maybe one of the [Diehard tests](https://en.wikipedia.org/wiki/Diehard_tests)?
     I just couldn't think of one that works so well with broadcasting.
 
 #### A simple exercise: "Where did the noise go?"
 
-Until now, I have avoided timing any of the our code because I wanted to make a point about GPU computation.
+Until now, I have avoided timing the majority of the our code because I wanted to make a point about GPU computation.
 Namely, if you are only working with a few elements at a time, the CPU will usually be faster.
 For example, here are the timing results for vector addition on my computer.
 First, let's do the CPU:
@@ -654,7 +685,7 @@ julia> AMDGPU.@time gpu_c .= gpu_a + gpu_b;
 
 ```
 
-Note that for both of these timings, I have shown only the results of teh second run of the code to avoid precompilation overhead.
+Note that for both of these timings, I have shown only the results of the second run of the code to avoid precompilation overhead.
 Even so, it's clear the CPU is faster.
 How much faster?
 
@@ -666,13 +697,13 @@ julia> 0.000054 / 0.000003
 
 18 times.
 It's 18 times faster to avoid the GPU entirely!
-So what gives?
+Why?
 Well, we are doing operations that are a little *too* simple on arrays that are really, really small.
 I mean, the CPU took three *micro*seconds.
 The GPU was fifty-four microseconds.
 Can we really draw any conclusions from such small numbers?
 
-To really get some performance from the GPU, let's do something a little complicated.
+To really see some performance from the GPU, let's do something a little complicated.
 We are going to make an array of random numbers... disappear!
 
 First, let's install the plotting package, `Plots`.
@@ -694,7 +725,8 @@ julia> heatmap(a; clims = (0,1))
 ```
 
 I have chosen to make the array 1920x1080 because that mirrors the resolution of a high-definition display.
-Also, we are using `heatmap` here (instead of `plot`) because we want a 2D image as output and I am using color limits (`clims`) from zeros to one.
+Also, we are using `heatmap` here (instead of `plot`) because we want a 2D image as output.
+I am also using color limits (`clims`) from zeros to one.
 This should create an image that looks like this:
 
 ![Initial Random Array](abstractions_res/out_1.png)
@@ -716,27 +748,42 @@ julia> @time for i = 1:1000
 julia> a ./= 1000;
 ```
 
-It took about 1.5 seconds and creates the following image (with `heatmap(a; clims = (0,1))`:
+It took about 1.5 seconds to do the computation and creates the following image (with `heatmap(a; clims = (0,1))`:
 
 ![Initial Random Array](abstractions_res/out_2.png)
 
 Wow!
-All the values have averaged to 0.5!
+The color is gone from our plot as all the values have averaged to 0.5!
+What happened?
+Well, we just took 1000 random samples on each pixel and averaged them.
+Because `rand(...)` gives us a random number between 0 and 1, the final value for each pixel should be the average of 0 and 1, which is 0.5.
 
 !!! note "About looping in Julia..."
     Looping in Julia (and in many languages) generally has two modes: `for` and `while`.
-    We have just seen the `for` loop in practice and is most often over a range of a certain number of elements.
-    For example"
+    We have just seen the `for` loop in practice and is most often used over a range of a certain number of elements.
+    For example:
     ```
     for i = 1:10
         println(i)
     end
     ```
     Will set the value of `i` to be 1, execute the commant, then set the value of `i` to be 2 and execute the command again.
-    It will then set the value of `i` to be 3 and execute the command again,
+    After that, it will set the value of `i` to be 3 and execute the command again.
     It will continue this process until it reaches the end of the range provided (`1:10`), which is 10 in this case.
-    This process is known as "iteration" and will be discussed in more detail later in this chapter.
+    This process is known as "iteration" and will be discussed in more detail later in this chapter when we talk about loop vectorization.
     For now, I'll mention that the `for` loops allows users to iterate through any container, including `Arrays`, but not GPUArrays due to the scalar iteration issue discussed earlier.
+    So the following is also valid:
+    ```
+    julia> a = [1,3,5,7];
+    
+    julia> for i in a
+               println(i)
+           end
+    1
+    3
+    5
+    7
+    ```
 
     The other common looping structure in Julia is the `while` loop, which continues executing the same command over and over until some condition is evaluated as `false`.
     For example:
@@ -753,12 +800,10 @@ All the values have averaged to 0.5!
 Ok.
 I get it.
 It's not that impressive.
-After all, the average of `rand(...)` *should be* 0.5, and we just did an average of 1000 numbers for each element of `a`.
 There are some fun discussions we could have about testing how random random number generators truly are, but that would take a lot of time.
-If you are interested in this kind of stuff, I would recommend you look into diehard tests.
-They are a fun suite of tests specifically for random number generation.
-
-For now, we'll move on and run the same code on the GPU
+If you are interested in this kind of stuff, I would recommend you look into Diehard tests.
+It's a fun suite of tests specifically for random number generation.
+For now, we'll move on to the real magic and run the same code on the GPU:
 
 ```
 julia> AMDGPU.@time for i = 1:1000
@@ -769,21 +814,20 @@ julia> AMDGPU.@time for i = 1:1000
 julia> b ./= 1000;
 ```
 
-... And here's the real magic.
 Did you see that?
 1.738 *milli*seconds.
 That's roughly 1000 times faster than our CPU implementation!
 
 Here we (finally) start to see a glimpse of the true power of GPU computing.
-On the one hand, we need to balance complexity a bit.
-If it's too complex (think recursion or tree traversal), the CPU will do it better.
-If there are not enough data points (`zeros(10)`), again it's better to stick to the CPU.
-But when the GPU is in it's element, it really can shine.
+On the one hand, we need to balance our complexity a bit.
+If the code is too complex (think recursion or tree traversal), the CPU will do it better.
+If there is not enough data (`zeros(10)`), again it's better to stick to the CPU.
+But when the GPU is in its element, it really can shine.
 
 Now, don't expect every problem to be 1000 times faster on the GPU.
-I have specifically manufactured this ty problem to show off how fast it can be.
+I have specifically manufactured this toy problem to show off how fast it can be.
 In actual applications, developers typically see anywhere from 5-100 times improvement depending on the situation.
-Still, it's nice to know that we are doing all of this for a good reason, and that reason is performance.
+Still, it's nice to know that we are doing all of this for a good reason: performance.
 
 !!! todo "Problem 7: Do it on your machine"
     I know some of you were tic-tac-typing along with me through the last exercise.
@@ -822,21 +866,20 @@ In fact, there are a bunch of similar stories throughout the GPU ecosystem and I
 
 #### Final musings on broadcasting for GPU computation
 
-A few years ago, I had just started working at MIT, and I was excited to see what people were actually using the GPU ecosystem in Julia for.
-I came across an ocean simulation project with incredibly enthusiastic developers.
-It was fast and intuitive to use.
-I was shocked when I found out that they had written their entire codebase solely using broadcasting.
+When started working at MIT, I was excited to see what people were actually using the GPU ecosystem in Julia for.
+At the time, I came across an ocean simulation project with incredibly enthusiastic developers.
+It was fast and intuitive to use, but I was shocked to find out that they had written their entire codebase solely using broadcasting operations and in-built Julia functions.
 
-And why shouldn't they?
+Upon further reflection, I realized I needed to check my own biases.
 Broadcasting provides a hardware-agnostic method for performing almost any mathematical operation!
-If you are exclusively crunching numbers, then there is almost no better abstraction than writing down the math and adding a few `.`s here and there.
+If a user is exclusively crunching numbers, then there is almost no better abstraction than writing down the math and adding a few `.`s here and there.
 
-Yet, after a few years, they sought even better performance and eventually rewrote their code using GPU-exclusive functions (kernels), which will be introduced in the following section.
+Even so, after a few years, the ocean team sought even better performance and eventually rewrote their code using GPU-exclusive functions (kernels), which will be introduced in the following section.
 Simply put, broadcasting is an absolutely excellent way to get started with GPU computation in Julia.
 It's an intuitive abstraction and will get you *most* of the performance you need from the GPU.
 
 But there's a reason this work is called the *GPU **Kernel** Handbook*.
-When you need true flexibility or better performance, there is no better abstraction than writing functions specifically for the GPU.
+When you need true flexibility or performance, there is no better abstraction than writing functions specifically for the GPU.
 
 ## GPU Functions: Kernels
 
@@ -845,23 +888,25 @@ We also walked through a simple example that used broadcasting to show the power
 This means that we should have some vague notion of how GPU execution works and what problems it's suited for, but now it's time to talk about the most common abstraction used for GPU programming: kernels.
 
 In GPU programming, a *kernel* is a function specifically written to be run on the GPU for some computational task.
-In principle, the only difference between a kernel and a regular function is that kernels are meant to run in parallel on each core
+In principle, the only difference between a kernel and a regular function is that kernels are meant to run in parallel on each core.
 This means that every core should run the *same, exact* function at the same time, but there are a few caveats to mention.
 For one, keep in mind that a lot of GPU computation will require more units of computation than there are cores.
 For example, a high-definition image might have 1920 x 1080 pixels in it.
-If the shading of each pixel is handled by a single core, then we would need 2,073,600 cores to do the computation.
-Unfortunately, the fastest GPUs in the world only have on the order of 5000 cores.
+If the coloring or shading of each pixel is handled by a single core, then we would need 2,073,600 cores to do the computation.
+Unfortunately, the fastest GPUs in the world only have around 10,000 cores available.
 So what do we do?
 Well, *we* don't really worry about that and instead let a scheduler stage the computation to happen in groups of cores in parallel.
 
 Keep in mind that kernels are abstractions.
 They are purposefully hiding information from users to make programming easier.
 In this case, users shouldn't need to think about the exact mechanics of scheduling on the GPU and can instead focus on writing down the specific computation that each core should perform.
-That said, programmers (like myself) are sometimes pedentic and will often distinguish the terms a bit here.
+That said, programmers (like myself) are sometimes pedantic and will often distinguish terms a bit here.
 Instead of talking about "cores," which are pieces of hardware, we often talk about "work items" (or "threads" for CUDA), which are abstract representations of cores to later be scheduled on to cores.
 To be clear, every work item corresponds to some core performing that computation, but we are letting the compiler choose *which* core each work item will run on.
+In this way, we don't need to worry about specifics of GPU hardware and can instead program them from a much more general perspective.
 
 I think that's enough background info for now.
+In fact, it might be too much.
 Let's get to writing some kernels.
 To be clear, each GPU backend (CUDA, AMD, Metal, oneAPI) all provide their own kernel interfaces that work in Julia, but we will be using KernelAbstractions for this work, so we need to start by adding that package.
 Start by pressing `]` and then enter to enter package mode. Then:
@@ -876,30 +921,48 @@ Now we are ready to write our first GPU kernel.
 
 ### Vector addition, but this time with kernels.
 
-I said it before and I'll say it again, "vector addition is the 'hello world!' of GPU programming."
+Like I said before, vector addition is the "Hello World!" of GPU programming.
 It's one of the simplest units of computation that can be done on the GPU to test functionality.
-So, let's start by writing down a function that might add two numbers together:
+So, let's start by writing down a function that might add two elements of separate arrays together:
 
 ```
-function add(c, a, b)
-    c = a + b
+function add!(c, a, b, idx)
+    c[idx] = a[idx] + b[idx]
 end
 ```
-This should (hopefully) be simple enough to understand.
 
-We now need to transform this function to work on each GPU workitem (core).
-To do this, we will need to change a few things:
-1. We need to add `using KernelAbstractions` to the start of our script.
-2. We need to add the `@kernel` macro to the start of our function.
-3. Because our function should operate on vectors, we need to reflect that in the code, itself, and create a variable to index `a`, `b`, and `c`. This might look like `idx = @index(Global)`, where `Global` signifies that we are pulling from all globally available threads.
-4. We need to add that index value to the array accesses.
+This function will take in three arrays (`a`, `b`, and `c`) and write add the `idx` index of `a` and `b` to `c`.
+So `add!(c, a, b, 1)` would be the same as `c[1] = a[1] + b[1]`.
+To be honest, it's a bit of a weird formulation, but bear with me.
+From here, it's relatively easy to transform the code into a GPU kernel that works on every workitem (core).
+We just need to:
+1. Add `using KernelAbstractions` to the start of our script.
+2. Add the `@kernel` macro to the start of our function.
+3. Move the `idx` definition to inside the function with something like `idx = @index(Global)`, where `Global` signifies that we are pulling from all globally available threads.
+
+!!! tip "What's the exclamation point (`!`) for?"
+    In Julia, there is no real distinction between functions that work in-place and out-of-place.
+    That is to say that if the user writes a new function `f(x)`, we cannot know from the function definition alone if it returns a value or not.
+    In fact, we could have two different `f(x)` functions that work differently depending on context:
+    ```
+    f(x) = x + 5
+    function f(x::Array)
+        for i = 1:length(x)
+            x[i] + 5
+        end
+    end
+    ```
+    
+    Here, the first `f(x)` will return a value, while the second will update all the values of an array, `x`, without returning anything explicitly.
+    To avoid confusion, it is good practice to add an `!` to any functions that will change the data associated with the arguments.
+    So in this case, the second `f(x)` should be changed to `f!(x::Array)` instead.
 
 All together:
 
 ```
 using KernelAbstractions
 
-@kernel function add(c, a, b)
+@kernel function add!(c, a, b)
     idx = @index(Global)
     c[idx] = a[idx] + b[idx]
 end
@@ -908,9 +971,9 @@ end
 And that's the whole function.
 Now we just need to run it.
 This is generally done in 3 steps:
-1. Configure all the input variables. In this case, it would mean making sure that `a`, `b`, and `c` are all of the appropriate array type for runnig the code on the GPU.
-2. Configure the kernel. This is done by first getting the right backend (for example, AMD, NVIDIA, Metal, etc), and then running the kernel with that backend as a function argument, so `kernel = add(get_backend(a))`.
-3. Run the kernel with the appropriate arguments, so `kernel(c, a, b, ndrange = length(a))`. Here `ndrange` is an $$n$$dimensional range of values to index over. In this case, as long as `a`, `b`, and `c` are all the same length, we could set the range to be the `length(...)` of any of the three.
+1. Configure all the input variables. In this case, it would mean making sure that `a`, `b`, and `c` are all of the appropriate array type for running the code on the GPU or in parallel on the CPU with the generic `Array` type.
+2. Configure the kernel. This is done by first getting the right backend (for example, AMD, NVIDIA, Metal, etc), and then running the kernel with that backend as a function argument, so `kernel = add!(get_backend(a))`.
+3. Run the kernel with the appropriate arguments, so `kernel(c, a, b, ndrange = length(a))`. Here `ndrange` is an $$n$$-dimensional range of values to index over. In this case, as long as `a`, `b`, and `c` are all the same length, we can set the range to be the `length(...)` of any of the three.
 
 Putting all of that together:
 
@@ -924,6 +987,7 @@ kernel = add(backend)
 kernel(c, a, b; ndrange = length(a))
 ```
 
+After running this, `c` should be `a .+ b`.
 Actually, now is a perfect time to test our results, so let's do that by comparing the results to broadcasting:
 
 ```
@@ -934,51 +998,22 @@ using Test
 ```
 
 Running this should return `Test Passed` into the REPL.
-And...
-There you have it!
-Your first GPU kernel!
+And that's all there is to it.
+Your first GPU kernel.
 
 Take a second to breath and pat yourself on the back a bit.
 At this point in time, you have taken a bold step into the world of GPU computing.
-There are a lot of specifics to talk about from here, but for many tasks, this level of GPU understanding is already enough to start seeing some benefits from GPU programming.
-That said, there is still a lot left to do, so I do hope you keep reading to learn more.
+There are a lot of specifics to talk about from here, but for many tasks, this level of GPU understanding is already enough to start seeing some benefits from the GPU.
+That said, there is still a lot left to do and many more pages in this book, so I do hope you keep reading to learn more.
 
 !!! todo "Problem 8: Do it on your machine"
     In case you haven't done it already, it is important to do this exercise on your own machine to make sure you understand how everything is put together.
     Basically, add `a` and `b` and make sure the results match what you expected from the broadcasting results.
 
-### A note on terminology
-In order to do this, we need to create terminology for each stage of the process.
-Keep in mind that each stage of this process also has it's own memory associated with it.
-Threads have memory.
-Groups of threads have more memory.
-GPUs, in general, have memory.
-Unfortunately, the naming conventions here get a little screwy and depend on which programming interface you are using, so let's write it all down.
+!!! note "Reviewer's Notice"
+    Again, looking for more problems.
 
-| Hardware concept | CUDA terminology | KernelAbstractions Terminology |
-| ---------------- | ---------------- | ------------------------------ |
-| Core             | Thread           | WorkItem                       |
-| Core memory      |                  |                                |
-| Group of cores   | Block            | WorkGroup                      |
-| Group memory     | Shared           | Local                          |
-| All cores        | Grid             | NDRange                        |
-| All memory       | Global           |                                |
-
-To be clear: KernelAbstractions terminology is largely inspired from OpenCL.
-In this case `NDRange` means an $$N$-dimensional range to iterate over.
-At this stage, it's probably a little confusing and overwhelming, so it might be good to refer back to this table as we have more practical examples.
-
-To keep all this straight, it is important to think about this from the thread's perspective.
-Each thread has access to:
-
-1. A small memory bank to hold local data. This is often called "local memory."
-2. A slightly larger memory bank to hold data of all threads running at the same time in a "block". This is called "Shared memory."
-3. An even larger memory bank that holds all available GPU memory. This is called "Global" memory.
-
-Mention that we can use CUDA.jl or AMDGPU.jl
-
-
-## Loop vectorization
+## A discussion on loop vectorization
 
 At this point in time, I have introduced two separate abstractions for GPU computing: broadcasting and kernels.
 I have discussed several core benefits of both, but acknowledge that neither one is common outside of specific circles.
@@ -992,9 +1027,9 @@ After all, they iterate through a list.
 It should be entirely possible to distribute that work to multiple cores, so that (for instance) core 1 handles iteration 1 and core 4 handles iteration 4.
 In fact, this is precisely what loop vectorization is, and there are plenty of GPU libraries that use loop vectorization for various GPU backends.
 
-With all that said, I've never found them to be intuitive abstractions for parallel programming.
+With all that said, I have personally never found them to be intuitive abstractions for parallel programming.
 I have always had trouble precisely explaining why this is the case, but let me try.
-Here is a parallel `for` loop in Julia:
+Here is a parallel, CPU `for` loop in Julia:
 
 ```
 Threads.@threads for i = 1:10
@@ -1002,9 +1037,9 @@ Threads.@threads for i = 1:10
 end
 ```
 
-Note that to use this loop, you need to launch Julia with a certain number of threads, such as `julia -t 12` for 12 threads.
+Note that to use this loop, we need to launch Julia with a certain number of threads, such as `julia -t 12` for 12 threads.
 After, all we need to do is add the `@threads` macro from the `Threads` package to the start of the loop.
-At a glance, it looks incredibly straightforward, but now let's look at the output for single core and parallel execution:
+At a glance, it looks incredibly straightforward, but let's look at the output for single core and parallel execution:
 
 | single-core | parallel |
 | ------- | ------- |
@@ -1030,7 +1065,7 @@ For parallel loops, the output order is independent of the iterative count betwe
 
 I remember when I saw this for the first time, I was surprised.
 In my mind, it shouldn't have mattered when the cores finished their operations.
-The `for` loop should have naturally just output everything in the right order, regardless of when the computation was done!
+The `for` loop should have just output everything in the right order, regardless of when the computation was done!
 But upon further reflection, I realized my own perspective was naive.
 
 The fact is that `Threads.@threads` is fundamentally changing the loop into something completely different.
@@ -1041,13 +1076,13 @@ It's just now we *also* need to fight our own intuition on how these loops shoul
 Another problem with looping is that many loops are inherently iterative and cannot be easily parallelized.
 Take timestepping, for example (the act of simulating motion, one small time step at a time).
 In this case, the first step (`i = 1`) *must* come before `i = 2`, which must come before `i = 3`, and so on.
-There is no issue with this when running code on a single core of a CPU, but let's face it.
-No one is writing code for a single-core CPU nowadays because such computers essentially don't exist.
+There is no issue with this when running code on a single core of a CPU, but let's face it:
+no one is currently writing code for a single-core CPU because such computers essentially don't exist.
 Nowadays, we really do care about parallelism.
 `Threads.@threads` (or similar approaches from other languages) feels a bandage solution to transform an iterative method into a parallel one which can be misleading for students and programmers.
 
 In addition, by relying on loops for parallelism, the code ends up being a large set of nested `for` loops, with one set of loops somewhere in the middle being parallel, while the rest remain iterative.
-It's a huge mess.
+It can quickly become a huge mess.
 While it is usually quite clear how to parallelize kernels, the choice of *which* loop to parallelize over is sometimes difficult for beginner programmers.
 At least in my experience, I have found that codebases using parallel loops end up looking just as messy, if not messier, than code using kernel-based approaches.
 On the other hand, for programmers that know what they are doing, loop-based abstractions can still be quite helpful -- especially for code that already exists and would be a pain to rewrite.
@@ -1063,14 +1098,12 @@ I love broadcasting, but acknowledge it is essentially never used outside of nic
 A lot of computer scientists still believe loops are the answer.
 But if we are looking at the numbers, it's incredibly clear that kernels have won the GPU abstraction wars, and for good reason.
 Kernels are more flexible than loops and are often more straightforward to write and integrate into a pre-existing software project.
-Loops exist as a olive branch to traditional CPU programmers who are unwilling to change their code to better reflect the world around them.
+It feels like loop vectorization exists as a olive branch to traditional CPU programmers who are unwilling to change their code to better reflect the world around them.
 
-## On abstraction levels
-
-This chapter has focused entirely on software abstractions that allow programmers to more easily write code that will eventually execute on GPU hardware.
-
-Are kernels truly "lower level"?
-I mean, you ultimately need the same GPU knowledge to write loop-based code, so no?
-It's just that people who are not used to GPU computation already know loops and feel they are the best abstraction.
-
+Ok.
+I think this is a good place to stop rambling.
+We covered all the basics necessary for the rest of this text.
 In the following chapters, we will begin to dive deeply into all the different things we can do with GPU kernels, starting with the most trivial stumbling block: summation.
+
+!!! note "Reviewer's Notice"
+    Again looking for general problem sets for readers to go through. I'll be fleshing this out later as the future directions become more clear.

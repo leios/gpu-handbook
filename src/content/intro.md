@@ -69,9 +69,6 @@ But I would argue that majority of programmers struggling with GPU programming i
 
 I think now is a good time to talk about the GPU ecosystem as a whole, and in particular...
 
-!!!info "Reviewer Notice"
-    Work these two sections together
-
 ## The Big Green Elephant in the Room
 
 It is often very difficult to recommend a GPU language or programming interface.
