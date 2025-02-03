@@ -16,6 +16,14 @@ In this chapter, I will introduce many common abstractions that can be used  to 
 
 ## Installation
 
+I think it is important to pause a second before jumping in to the water to remind ourselves of a simple truth: the first step of any project is always the hardest.
+This also holds true for programming, so if you find yourself a little lost while reading this chapter, that's totally normal.
+It's ok to put the book down.
+It's ok to ask for help.
+The most important thing is that you are steadily making progress towards your goals, whatever they might be.
+
+Now let's begin.
+
 As mentioned in the introduction, we will be using the Julia programming language for this book, so the first step is to install Julia.
 It is important to note that this book is intended for those who already have some (at least limited) familiarity with programming.
 As such, I will keep the installation instructions brief.
@@ -42,7 +50,7 @@ Ideally, you already know this information (because you bought or built your own
 
 * **Windows**: Go to the "Device Manager" and look under "Display Adapters", where you should find the manufacturer of your GPU.
 * **Mac**: Go to "About this Mac". If it says you are running an "Apple M$$x$$" chip, where $$x$$ is some number, then you can use your Apple Silicon GPU. Otherwise, there might some other GPU shown there.
-* **Linux**: To be honest, there are a bunch of different ways to figure out what hardware you are running, so feel free to google and use your preferred method. My go-to is always `lspci | grep "VGA"`, which will tell you what GPUs you have.
+* **Linux**: To be honest, there are a bunch of different ways to figure out what hardware you are running, so feel free to google and use your preferred method. My go-to is always `lspci | grep "VGA"`, which will tell you what GPUs you have. Other options include `lshw -C display` or just pasting `about:support` into the URL for Firefox.
 
 In the case you have more than one GPU available, feel free to use whichever one you want (or all of them).
 If you do not have a usable GPU, that is totally ok!
@@ -54,13 +62,13 @@ More on that in a moment.
 
 For now, let's talk about the Julia packages available for your hardware:
 
-| Hardware Available | Necessary Package | Array Type |
-| ------------------ | ----------------- | ---------- |
-| Parallel CPU       | none              | Array      |
-| NVIDIA GPU         | CUDA              | CuArray    |
-| AMD GPU            | AMDGPU            | ROCArray   |
-| Intel GPU          | oneAPI            | oneArray   |
-| Apple Silicon      | Metal             | MtlArray   |
+| Hardware Available | Julia Package | Julia Array Type |
+| ------------------ | ------------- | --------------- |
+| Parallel CPU       | none          | Array           |
+| NVIDIA GPU         | CUDA          | CuArray         |
+| AMD GPU            | AMDGPU        | ROCArray        |
+| Intel GPU          | oneAPI        | oneArray        |
+| Apple Silicon      | Metal         | MtlArray        |
 
 Keep in mind that the package names here follow the naming conventions for the traditional software tooling of your hardware.
 Julia's package for NVIDIA GPUs is `CUDA`, because it compiles down to the same thing as CUDA (a C language extension for NVIDIA GPU tooling), but does so in Julia.
@@ -75,6 +83,12 @@ At this point, if you already know your GPU hardware, simply install the relevan
 
 If `GPUBackend.functional()` returns `false`, then there is something wrong with the configuration.
 That is absolutely no problem for the purposes of this text, as you can simply use parallel CPU execution instead of the GPU; however, it might be worth googling around to try to figure out why your GPU is not working (and maybe even create an issue on github for the appropriate package if you feel your GPU *should* be supported, but isn't).
+
+Also note that there could have been any number of things that could have gone wrong during this installation process.
+If the steps above did not work for you, then it is important to search around for a solution.
+If you can't find a solution, then it's a good idea to reach out to the Julia slack community (there is a `#gpu` for this kind of thing) or the Julia Discourse.
+If neither of those resources are helpful, then it might be worth creating an issue for your specific GPU backend.
+
 
 !!! tip "But what if I don't know my hardware?"
     In this case, just install all the packages and test them all.
@@ -116,6 +130,20 @@ That is absolutely no problem for the purposes of this text, as you can simply u
     
     I introduced `]` first because (let's be honest) that's how the majority of people interface with the package manager; however, `using Pkg` is necessary for scripts and CI, so it is also important to know.
 
+As a final note before continuing, we will be using the notation from the previous table throughout this book.
+That is to say that I will be using `GPUBackend` to refer to your specific package (such as `AMDGPU` on my machine) and `ArrayType` to refer to the array type from that package (`ROCArray` on my machine).
+In the case you "just want to run the code" provided here, it might be worth setting these in your Julia REPL and future scripts.
+For example, on my machine, I might set:
+
+```
+GPUBackend = AMDGPU
+ArrayType = ROCArray
+```
+
+If you are using your CPU to emulate GPU execution for this work, then you do not need to set your `GPUBackend` and instead can remove `GPUBackend` from all code blocks for them to run.
+It is up to you how you wish to proceed here and what suits your learning style best.
+Regardless, we should have all (hopefully) finished installation at this point, so it's time to actually get some work done.
+
 ## Your first GPU array
  
 Alright, we've chosen our appropriate package.
@@ -132,7 +160,7 @@ This command will create an `Array` object whose memory exists "on the CPU".
 More accurately, the memory will sit on the motherboard RAM, a convenient location for CPU operations.
 We then need to send that data to the GPU by casting it onto the appropriate array type for our hardware with `ArrayType(a)`.
 Here, `ArrayType` is the array type from the table above.
-For example, those with an AMDGPU would use `ROCArray`.
+For example, those with an AMD GPU would use `ROCArray`.
 Those with an NVIDIA GPU would use `CuArray`.
 Those with Apple Silicon would use `MtlArray`.
 
@@ -259,7 +287,7 @@ julia> a = ones(10,10);
 
 julia> b = ArrayType(a);
 
-julia> a[1];
+julia> a[1]
 1.0
 
 julia> b[1];
@@ -412,23 +440,23 @@ And there you have it!
 You've just executed your first function on the GPU.
 But we probably want to do things way more complicated than just adding one to every element of an array, so let's look at a few quick examples of broadcasting in practice.
 
-!!! tip "What's up with the semicolon (`;`)?
+!!! tip "What's up with the semicolon (`;`)?"
     In the Julia REPL, you can add a semicolon (`;`) to the end of a line if you do not want to show the output immediately.
     I'll be using this throughout the book to make the text a little more clear to read.
 
-#### Adding one to every odd element
+#### Setting every odd element to 1
 
 We just added one to every element.
-What if we want to do the same, but for every *odd* element?
+What if we want to do something similar, but for every *odd* element?
 To do this, we need to define a custom *range* for accessing our Julia array.
 For example, if we want access only the first five elements of an array, we might use the range `1:5`.
 If we want to choose every other element, then we would go in steps of two, so `1:2:5`.
-Putting this together, if we want to add one to every odd element of an array, we might do...
+Putting this together, if we want to set every odd element of an array to 1, we might do...
 
 ```
 julia> a = zeros(10);
 
-julia> a[1:2:10] .+= 1;
+julia> a[1:2:10] .= 1;
 
 julia> a
 10-element Vector{Float64}:
@@ -446,6 +474,8 @@ julia> a
 ```
 
 And that's that.
+Note that in this case, we simply used `.=` instead of `.+=`.
+This was just a simple way of showing that any mathematical operation can be broadcasted, even if that operation is just assigning values.
 
 Now for a few quick exercises to make sure we understand everything:
 
@@ -460,6 +490,40 @@ Now for a few quick exercises to make sure we understand everything:
     So the squaring operator in Julia for a single value would look like `x ^= 2`.
     
     Now broadcast that operation to your entire array.
+
+#### What's the difference between indexing and broadcasting?
+
+Right.
+Good question.
+
+We just had two sections back-to-back with seemingly contradictory claims:
+1. It's not a good idea to grab individual indices of a GPU array.
+2. It's a *great* idea to grab multiple indices at once.
+
+For many users, it might not be clear what the distinction is here.
+After all, what is the difference between `a[1]` and `a[1:5]`?
+Why is the latter so fundamentally different in Julia?
+
+It is actually difficult to answer this question without digging in to the Julia programming language, itself (and the `base/broadcast.jl` file), but the simplest explanation is that the `.` before any operation signifies that the user would like to call the Julia `map` function, which distributes a function across elements of an array.
+For the Julia GPU ecosystem (in the `GPUArrays.jl` package), any broadcasted operation will actually create a specific GPU function for the `map`.
+
+Simply put: if you are just trying to access a single element of a GPU array, we can not easily transform that into a GPU function that works in parallel on your hardware.
+If you are trying to *do something* with a bunch of elements, then it is easy(ish) to do so.
+
+And if you are wondering, yes.
+This does mean that you can get around the scalar indexing warning by using a range with only a single element, like:
+
+```
+julia> a = zeros(5):
+
+julia> b = ROCArray(a):
+
+julia> b[1:1]
+1-element ROCArray{Float64, 1, AMDGPU.Runtime.Mem.HIPBuffer}:
+ 0.0
+```
+
+Please don't abuse this too much.
 
 #### Vector addition
 
@@ -542,8 +606,8 @@ The data in `c` from `similar` will be just whatever junk was in memory at the t
 That shouldn't matter because `c` is used exclusively for output, so there's no reason to invoke `rand(...)` if we don't need it.
 
 There are actually distinct terms to distinguish between the two different types of computation we did:
-1. **In Place** computation is when all operations act on *already existing* data.
-2. **Out of Place** computation is when some operations *create new data*.
+1. **In Place** computation is when all operations act on *already existing* data. In this case, the `.=` command broadcasts `c[i] = a[i] + b[i]` to all elements of the array, assuming `a`, `b`, and `c` already exist.
+2. **Out of Place** computation is when some operations *create new data*. In this case, the `=` sign assigns the output of `a .+ b` to a new array, called `c`.
 
 So `c = a .+ b` was *out of place*, while `c .= a .+ b` was *in place*.
 It's important to keep this in mind for later.
@@ -551,8 +615,8 @@ Remember that data flow *really* matters with GPU computation, so it's doubly im
 
 A quick note.
 I would like to believe that *every single Julia programmer* has been tripped up by the difference between `=` and `.=`.
-I certainly have torn my own hair out late in the evening, trying to figure out why the performance of my code is so slow, only to realize I forgot a single `.`, which meant that I was accidentally allocating a bunch of memory I didn't need to.
-It happens to the best of us, which is why I am pointing it out now while you are young and impressionable.
+I certainly have torn my own hair out late in the evening, trying to figure out why the performance of my code is so slow, only to realize I forgot a single `.`, which meant that I was creating a bunch of new arrays instead of writing to pre-existing arrays.
+This type of stuff happens to the best of us, which is why I am pointing it out now while you are young and impressionable.
 Julia syntax sometimes looks sleek, but there's a lot of power under-the-hood, so it is wise to take a second and make sure every line is actually doing what you want. 
 
 I think that's it for now.
@@ -931,34 +995,26 @@ function add!(c, a, b, idx)
 end
 ```
 
-This function will take in three arrays (`a`, `b`, and `c`) and write add the `idx` index of `a` and `b` to `c`.
+This function will take in three arrays (`a`, `b`, and `c`) and add the `idx` index of `a` and `b` to the `idx` index of  `c`.
 So `add!(c, a, b, 1)` would be the same as `c[1] = a[1] + b[1]`.
 To be honest, it's a bit of a weird formulation, but bear with me.
-From here, it's relatively easy to transform the code into a GPU kernel that works on every workitem (core).
+From here, it's relatively easy to transform the code into a GPU kernel that works on every work item (core).
 We just need to:
 1. Add `using KernelAbstractions` to the start of our script.
 2. Add the `@kernel` macro to the start of our function.
 3. Move the `idx` definition to inside the function with something like `idx = @index(Global)`, where `Global` signifies that we are pulling from all globally available threads.
 
 !!! tip "What's the exclamation point (`!`) for?"
-    In Julia, there is no real distinction between functions that work in-place and out-of-place.
-    That is to say that if the user writes a new function `f(x)`, we cannot know from the function definition alone if it returns a value or not.
-    In fact, we could have two different `f(x)` functions that work differently depending on context:
-    ```
-    f(x) = x + 5
-    function f(x::Array)
-        for i = 1:length(x)
-            x[i] + 5
-        end
-    end
-    ```
+    In programming, there is a concept known as "mutation" that indicates an in-place change to the values of an array or structure.
+    For example, setting `a[1] = 5` *mutates* `a`.
+    It changes a single element, but `a` is still the same size and shape it was before.
+    In Julia, functions can also mutate data, such as in `add!(c, a, b, idx)` above.
+    In these cases, it is good practice (though not a requirement) to notate the function with an exclamation point (`!`).
+    It's also common to put the array(s) that will be mutated at the start of the argument list, which is why we set the order of `add!` to be `c, a, b` instead of `a, b, c`.
+    At the end of the day, these are just small notational changes to help other people understand how your code works.
+    It's up to you whether they make sense in your, specific context.
+
     
-    Here, the first `f(x)` will return a value, while the second will update all the values of an array, `x`, without returning anything explicitly.
-    To avoid confusion, it is good practice to add an `!` to any functions that will change the data associated with the arguments.
-    So in this case, the second `f(x)` should be changed to `f!(x::Array)` instead.
-
-All together:
-
 ```
 using KernelAbstractions
 
@@ -983,7 +1039,7 @@ b = ArrayType(rand(10))
 c = similar(a)
 
 backend = get_backend(a)
-kernel = add(backend)
+kernel = add!(backend)
 kernel(c, a, b; ndrange = length(a))
 ```
 
