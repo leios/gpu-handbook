@@ -97,13 +97,13 @@ What might have been a single afternoon of work might suddenly turn into a week 
 But there must be a better way, right?
 
 Kinda.
-Cross-platform GPU interfaces allow you to write functions that run at essentially the same speed as vendor-specific APIs (like CUDA), but those functions are not limited to specific hardware.
+Cross-platform GPU interfaces allow you to write functions that run at essentially the same speed as vendor-specific programming interfaces (like CUDA), but those functions are not limited to specific hardware.
 This means that the same code can run on AMD, Intel, Apple Silicon, and NVIDIA hardware.
 In fact, many cross-platform interfaces allow for that same code to run in parallel on the CPU as well.
 In particular, the Open Compute Language (OpenCL) can even run on many cell phones and Field Programmable Gate Arrays (FPGAs), which are separate devices used in completely different types of problems for performance reasons.
 
 So what's the catch? 
-Why doesn't everyone use cross-platform interfaces.
+Why doesn't everyone use cross-platform interfaces?
 Well, it's hard to overstate how incredibly dominant CUDA has been in the GPGPU space for so many years.
 Sure, you *could* write your code in a cross-platform way, but why would you?
 You would be taking a small performance hit (something like 10%) and it would take an extra week to write your code.
@@ -135,19 +135,16 @@ There are benefits and drawbacks of this choice, which I could ramble about for 
 
 There are a few other benefits, but this specific combination of useful features cannot be found anywhere else.
 
-!!!info "Reviewer Notice"
-    What core limitation
-
 To be clear, the Open Compute Language (OpenCL) also shares many of these advantages and even has a few distinct benefits over Julia as well.
 Unfortunately, OpenCL is a little less straightforward to use.
 The way I see it, this book is about teaching GPU concepts, and the JuliaGPU ecosystem allows me to quickly do just that.
 If I were to write this book with OpenCL (or even CUDA), I would need to spend a significant amount of time explaining syntax and odd quirks to C (or god-forbid C++), that I just don't want to deal with.
 Again, I am actively encouraging you to rewrite this entire book in the language of your choice.
-For me, I'm planning to stick to Julia, but there is a core limitation to this choice I will mention at the end of this chapter.
+For me, I'm planning to stick to Julia, but there are a few limitations to this choice that I will mention throughout this book.
 
 Also, to be completely transparent, I have contributed to the GPU ecosystem in Julia in several ways, including the KernelAbstractions package we will be using for this work.
 This could be seen as a net benefit.
-After all, how often do you get to read a book from a developer of the API you will be using?
+After all, how often do you get to read a book from a developer of the tools you will be using?
 On the other hand, I need to acknowledge my biases and let you (the reader) know that several of my opinions might be a little too favorable towards Julia and that your day-to-day experience with the language might fall a little short depending on your familiarity.
 
 On the other (other) hand, I really do try to be as objective as possible when talking about projects I am passionate about.

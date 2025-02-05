@@ -30,7 +30,8 @@ As such, I will keep the installation instructions brief.
 If you are already used to programming, you probably already have your own preferred development workflows all sorted out and can just google for similar solutions with Julia.
 
 For most users, installation involves going to the website [https://julialang.org/downloads/](https://julialang.org/downloads/) [^1] and following the instructions.
-This usually involves opening up the terminal (or shell on Windows) and running the provided command.
+The website provides both binaries for your operating system as well as a command to install a package called `juliaup` which will allow you to easily update Julia in the future.
+Linux users (or those with the appropriate software on Windows or Mac) can also install Julia with their package manager.
 With Julia installed, the next step is decide how to edit code.
 There are generally two options here:
 
@@ -181,7 +182,7 @@ In fact, most of the array creation routines (such as `rand(...)`, and `ones(...
 
 !!! tip "A note about Macs"
     If you are running a Mac, you might not have been able to create your array on the GPU.
-    This is because Metal (the API used for GPU computation on Apple Silicon) only supports single precision (`Float32` and `Int32` for example).
+    This is because Metal (the interface used for GPU computation on Apple Silicon) only supports single precision (`Float32` and `Int32` for example).
     So to create the necessary array on a mac, specify the type for `zeros(...)` first, like so:
     ```
     julia> a = zeros(Float32, 10, 10)
