@@ -378,7 +378,7 @@ So let's start at the start.
 To reiterate, *broadcasting* is the act of applying the same command (broadcasting in the colloquial sense) to every element in an array.
 Though accessing individual elements of a GPU array is a little complicated, applying the same operation to all elements of an array is surprisingly easy -- in fact, it's perfect for the GPU!
 
-So let's look at some basic syntax:
+So let's look at some basic syntax on the CPU first:
 
 ```
 julia> a = zeros(10)
@@ -394,7 +394,7 @@ julia> a = zeros(10)
  0.0
  0.0
 
-julia> a .+= 1
+julia> a .= 1
 10-element Vector{Float64}:
  1.0
  1.0
@@ -412,7 +412,7 @@ julia> a .+= 1
 In Julia, the `.` before some command indicates to the compiler that the user would like to broadcast the command to all elements of an array.
 So, these lines:
 1. Created an array (`Vector`) of ten zeros, called `a`.
-2. Broadcasted the `+= 1` command to each element of the array, indicated with `.+= 1`
+2. Broadcasted the `= 1` command to each element of the array, indicated with `.= 1`
 
 Now for some Julia magic: as long as you are can write your GPU code as broadcasted operations, it should be possible to execute that code in parallel on the GPU.
 For example, the following will also work:
@@ -439,7 +439,9 @@ julia> a .+= 1
 
 And there you have it!
 You've just executed your first function on the GPU.
-But we probably want to do things way more complicated than just adding one to every element of an array, so let's look at a few quick examples of broadcasting in practice.
+Note that in this case, we switched things up a bit and used the `.+=` command instead of `.=`.
+This simply means that we added 1 to every element (the `+=` operation) instead of setting every element equal to (`=`) 1.
+That said, we probably want to do things way more complicated than just adding one to every element of an array, so let's look at a few quick examples of broadcasting in practice.
 
 !!! tip "What's up with the semicolon (`;`)?"
     In the Julia REPL, you can add a semicolon (`;`) to the end of a line if you do not want to show the output immediately.
@@ -475,7 +477,6 @@ julia> a
 ```
 
 And that's that.
-Note that in this case, we simply used `.=` instead of `.+=`.
 This was just a simple way of showing that any mathematical operation can be broadcasted, even if that operation is just assigning values.
 
 Now for a few quick exercises to make sure we understand everything:
@@ -646,7 +647,7 @@ julia> f(x) = round(Int, x*100)
 ```
 
 This would take some input (`x`), multiply it by one-hundred, and then round it to the nearest integer value (`Int`).
-So `f(0.5)` is `50.
+So `f(0.5)` is `50`.
 `f(0.6542)` is `65`.
 And so on.
 Now let's broadcast that function to an array of random numbers:
@@ -670,7 +671,7 @@ julia> f.(a)
 ```
 
 Here, we've used the `.` operator to signify that we want the function broadcasted along all elements of the argument of `f`.
-So let's create another function to do the vector addition from the previous section:
+Now let's create another function to do the vector addition from the previous section:
 
 ```
 julia> g(a, b) = a + b
@@ -866,8 +867,8 @@ Ok.
 I get it.
 It's not that impressive.
 There are some fun discussions we could have about testing how random random number generators truly are, but that would take a lot of time.
-If you are interested in this kind of stuff, I would recommend you look into Diehard tests.
-It's a fun suite of tests specifically for random number generation.
+If you are interested in that kind of stuff, I would recommend you look into Diehard tests.
+They are a fun suite of tests specifically for random number generation.
 For now, we'll move on to the real magic and run the same code on the GPU:
 
 ```
@@ -885,9 +886,9 @@ That's roughly 1000 times faster than our CPU implementation!
 
 Here we (finally) start to see a glimpse of the true power of GPU computing.
 On the one hand, we need to balance our complexity a bit.
-If the code is too complex (think recursion or tree traversal), the CPU will do it better.
+If the code is too complex, the CPU will do it better because each individual core is stronger.
 If there is not enough data (`zeros(10)`), again it's better to stick to the CPU.
-But when the GPU is in its element, it really can shine.
+But when the GPU is in its element, it can really shine.
 
 Now, don't expect every problem to be 1000 times faster on the GPU.
 I have specifically manufactured this toy problem to show off how fast it can be.
@@ -909,6 +910,7 @@ I think it's time to take a second to discuss the limitations of broadcasting.
 #### Some room for development
 
 So here's a weird quirk of the Julia ecosystem.
+Something that might cause us to reconsider the speedup noted in the previous section.
 Even though broadcasted operations performed on a GPU array are done in parallel by default, the same is not true for traditional CPU `Array`s.
 To be doubly clear, this will be executed in parallel:
 ```
@@ -926,14 +928,21 @@ Some of it comes down to engineering time.
 Some of it comes down to active research questions regarding the proper procedure to distribute generic operations in parallel.
 For the purposes of this book, none of that matters because we are talking about GPU execution, specifically.
 
-It's just good to point out that there are certain areas within the Julia language that people are working on, but are not fully finished yet.
+Ultimately, this means that the comparison between the CPU and GPU made in the previous section might not have been entirely fair.
+We were not comparing *parallel* CPU to parallel GPU.
+Instead, we were comparing a single CPU core to the *entire power* of the GPU.
+If I were instead to use all the cores available on my machine (16), then we could expect to see an order of magnitude improvement on the previous result for the CPU.
+So instead of a 1000 times improvement, there might have been only 50 or so.
+
+All said, it's good to point out areas within the Julia language that are being worked on, but are not fully finished yet.
 In fact, there are a bunch of similar stories throughout the GPU ecosystem and I will try to point these out as they come up.
 
 #### Final musings on broadcasting for GPU computation
 
 When started working at MIT, I was excited to see what people were actually using the GPU ecosystem in Julia for.
 At the time, I came across an ocean simulation project with incredibly enthusiastic developers.
-It was fast and intuitive to use, but I was shocked to find out that they had written their entire codebase solely using broadcasting operations and in-built Julia functions.
+It was fast and intuitive to use, and they highlighted the fact that it was fully functional on the GPU.
+Coming from a more traditional graphics background, I was shocked to find out that they had written their entire codebase solely using broadcasting operations and in-built Julia functions.
 
 Upon further reflection, I realized I needed to check my own biases.
 Broadcasting provides a hardware-agnostic method for performing almost any mathematical operation!
@@ -1066,6 +1075,20 @@ That said, there is still a lot left to do and many more pages in this book, so 
 !!! todo "Problem 8: Do it on your machine"
     In case you haven't done it already, it is important to do this exercise on your own machine to make sure you understand how everything is put together.
     Basically, add `a` and `b` and make sure the results match what you expected from the broadcasting results.
+
+!!! todo "Problem 9: Set each array element equal to it's index"
+    Create a simple kernel that sets every element of an array equal to it's index (`idx = @index(Global)` in the previous example)
+
+!!! todo "Problem 10: Create a sine wave"
+    Create a simple kernel that creates a sine wave when plotting.
+    Then pass it back to the CPU and plot it with `plot(...)` from the `Plots` package.
+    
+    Hint: You instead of setting each element of the array equal to it's index, set it to some value between 0 and 2*pi and then pass that in to a sin function.
+    In the end, it might look like this: `sin(idx / (2*pi))`.
+
+!!! todo "Problem 11: Add half of an array to another array"
+    Create two arrays and add the first half of one to the second half of the other.
+    This involves creating a custom `ndrange` that might be something like `length(a)/2` where `a` is one of your arrays.
 
 !!! note "Reviewer's Notice"
     Again, looking for more problems.
