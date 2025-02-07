@@ -900,6 +900,11 @@ Still, it's nice to know that we are doing all of this for a good reason: perfor
     Some were not.
     This problem is a gentle encouragement from me to you to make doubly sure you can do the previous example on your own machine with your own GPU.
 
+!!! todo "Problem 8: Make a sine wave"
+    Create a range from 0 to 2pi (for example `0:0.1:2pi`).
+    Send that to the GPU and broadcast a sine operation to each element (`sin.(...)`).
+    After, plot the results (`plot(...)`).
+
 !!! note "Reviewer Notice"
     I need a few more good problems for this section.
     Or maybe not?
@@ -960,6 +965,11 @@ When you need true flexibility or performance, there is no better abstraction th
 To recap, we have already introduced a language abstraction, known as *broadcasting*, that can be used out-of-the box in Julia for great GPU performance in most cases.
 We also walked through a simple example that used broadcasting to show the power of GPU computing with a 1000 times speed-up (on my hardware, at least) when compared to single-core CPU execution.
 This means that we should have some vague notion of how GPU execution works and what problems it's suited for, but now it's time to talk about the most common abstraction used for GPU programming: kernels.
+
+Before going further, I think it's important to talk about the structure of this book.
+Simply put, almost every other chapter in this work will be related to writing and running kernels.
+This section is intended to provide the most basic level of understanding for kernel development in order to match what we have already discussed with broadcasting.
+Subsequent chapters will be much more thorough and build upon this knowledge.
 
 In GPU programming, a *kernel* is a function specifically written to be run on the GPU for some computational task.
 In principle, the only difference between a kernel and a regular function is that kernels are meant to run in parallel on each core.
@@ -1072,21 +1082,21 @@ At this point in time, you have taken a bold step into the world of GPU computin
 There are a lot of specifics to talk about from here, but for many tasks, this level of GPU understanding is already enough to start seeing some benefits from the GPU.
 That said, there is still a lot left to do and many more pages in this book, so I do hope you keep reading to learn more.
 
-!!! todo "Problem 8: Do it on your machine"
+!!! todo "Problem 9: Do it on your machine"
     In case you haven't done it already, it is important to do this exercise on your own machine to make sure you understand how everything is put together.
     Basically, add `a` and `b` and make sure the results match what you expected from the broadcasting results.
 
-!!! todo "Problem 9: Set each array element equal to it's index"
+!!! todo "Problem 10: Set each array element equal to it's index"
     Create a simple kernel that sets every element of an array equal to it's index (`idx = @index(Global)` in the previous example)
 
-!!! todo "Problem 10: Create a sine wave"
+!!! todo "Problem 11: Create a sine wave"
     Create a simple kernel that creates a sine wave when plotting.
     Then pass it back to the CPU and plot it with `plot(...)` from the `Plots` package.
     
     Hint: You instead of setting each element of the array equal to it's index, set it to some value between 0 and 2*pi and then pass that in to a sin function.
     In the end, it might look like this: `sin(idx / (2*pi))`.
 
-!!! todo "Problem 11: Add half of an array to another array"
+!!! todo "Problem 12: Add half of an array to another array"
     Create two arrays and add the first half of one to the second half of the other.
     This involves creating a custom `ndrange` that might be something like `length(a)/2` where `a` is one of your arrays.
 
@@ -1095,8 +1105,8 @@ That said, there is still a lot left to do and many more pages in this book, so 
 
 ## A discussion on loop vectorization
 
-At this point in time, I have introduced two separate abstractions for GPU computing: broadcasting and kernels.
-I have discussed several core benefits of both, but acknowledge that neither one is common outside of specific circles.
+At this point in time, we have introduced two separate abstractions for GPU computing: broadcasting and kernels.
+We have discussed several core benefits of both, but I acknowledge that neither one is common outside of specific circles.
 There is yet another abstraction commonly used for GPU programming.
 One that everyone knows (and many people love).
 They are one of the first things people learn how to do in any new programming language and are essential tools for almost any workflow.
@@ -1106,10 +1116,43 @@ On paper, loops look like perfect abstractions for parallel computing.
 After all, they iterate through a list.
 It should be entirely possible to distribute that work to multiple cores, so that (for instance) core 1 handles iteration 1 and core 4 handles iteration 4.
 In fact, this is precisely what loop vectorization is, and there are plenty of GPU libraries that use loop vectorization for various GPU backends.
+That said, these libraries require users to modify their loops in some way for them to run at all on the GPU.
 
-With all that said, I have personally never found them to be intuitive abstractions for parallel programming.
-I have always had trouble precisely explaining why this is the case, but let me try.
-Here is a parallel, CPU `for` loop in Julia:
+Simply put, the following code will fail due to the scalar indexing issue brought up before:
+
+```
+julia> a = ArrayType(zeros(10));
+
+julia> for i = 1:10
+           a[i] = 1
+       end
+ERROR: Scalar indexing is disallowed.
+Invocation of setindex! resulted in scalar indexing of a GPU array.
+This is typically caused by calling an iterating implementation of a method.
+Such implementations *do not* execute on the GPU, but very slowly on the CPU,
+and therefore should be avoided.
+
+If you want to allow scalar iteration, use `allowscalar` or `@allowscalar`
+to enable scalar iteration globally or for the operations in question.
+Stacktrace:
+ [1] error(s::String)
+   @ Base ./error.jl:35
+ [2] errorscalar(op::String)
+   @ GPUArraysCore ~/.julia/packages/GPUArraysCore/aNaXo/src/GPUArraysCore.jl:151
+ [3] _assertscalar(op::String, behavior::GPUArraysCore.ScalarIndexing)
+   @ GPUArraysCore ~/.julia/packages/GPUArraysCore/aNaXo/src/GPUArraysCore.jl:124
+ [4] assertscalar(op::String)
+   @ GPUArraysCore ~/.julia/packages/GPUArraysCore/aNaXo/src/GPUArraysCore.jl:112
+ [5] setindex!(A::ROCArray{Float64, 1, AMDGPU.Runtime.Mem.HIPBuffer}, v::Int64, I::Int64)
+   @ GPUArrays ~/.julia/packages/GPUArrays/Mot2g/src/host/indexing.jl:58
+ [6] top-level scope
+   @ ./REPL[13]:2
+```
+
+There is no functional difference between `a[i]` and `a[1]`.
+In both cases, we are trying to manipulate a single element of a GPU array, which we have already indicated is a problem.
+So how do we modify the code to run in parallel?
+Well, here is a parallel, CPU `for` loop in Julia:
 
 ```
 Threads.@threads for i = 1:10
@@ -1119,7 +1162,9 @@ end
 
 Note that to use this loop, we need to launch Julia with a certain number of threads, such as `julia -t 12` for 12 threads.
 After, all we need to do is add the `@threads` macro from the `Threads` package to the start of the loop.
-At a glance, it looks incredibly straightforward, but let's look at the output for single core and parallel execution:
+At a glance, it looks incredibly straightforward.
+After all, we can just add a macro to the start of the loop without modifying anything else in the code.
+But now let's look at the output for single core and parallel execution:
 
 | single-core | parallel |
 | ------- | ------- |
@@ -1150,14 +1195,35 @@ But upon further reflection, I realized my own perspective was naive.
 
 The fact is that `Threads.@threads` is fundamentally changing the loop into something completely different.
 We can't just slap that bad boy on anything.
-When we use `Threads.@threads`, we need to think about the ramifications of parallelism in the very same way we would think about writing complex kernels and distributing that work to the GPU.
+When we use `Threads.@threads`, we need to think about the ramifications of parallelism in the very same way we would think about writing complex kernels and distributing work to different GPU cores.
 It's just now we *also* need to fight our own intuition on how these loops should function.
+
+So how might we modify the loop to output the numbers in order?
+The simplest way would be to introduce an array so each core is not simply printing a number, but instead modifying a particular element of the array.
+Core 1 might modify index 1.
+Core 2 might modify index 2.
+And so on.
+In the end, it might look something like this:
+
+```
+a = zeros(10)
+Threads.@threads for i = 1:length(a)
+    a[i] = i
+end
+println(a)
+```
+
+This will print the elements of the array in order because each core was given some ordered location to put the data in.
+Note that to get this loop to do what we wanted in the end, we needed to introduce an auxiliary array and then modify our operation to act on that data.
+This is precisely the same workflow as broadcasting and kernels, so even though we are "just adding a macro to the start of the loop," we also have to fundamentally change the structure of our code to get the macro to work.
+In my experience, this is generally true.
+Loops appear easy to new programmers, but are actually not always intuitive abstractions for parallel programming.
 
 Another problem with looping is that many loops are inherently iterative and cannot be easily parallelized.
 Take timestepping, for example (the act of simulating motion, one small time step at a time).
-In this case, the first step (`i = 1`) *must* come before `i = 2`, which must come before `i = 3`, and so on.
-There is no issue with this when running code on a single core of a CPU, but let's face it:
-no one is currently writing code for a single-core CPU because such computers essentially don't exist.
+In this case, each iteration is a point in time, so the first step (`i = 1`) *must* come before `i = 2`, which must come before `i = 3`, and so on.
+There is no issue with iterative methods like timestepping when we are running code on a single core of a CPU, but let's face it:
+basically no one is currently writing code for a single-core CPU because such computers essentially don't exist.
 Nowadays, we really do care about parallelism.
 `Threads.@threads` (or similar approaches from other languages) feels a bandage solution to transform an iterative method into a parallel one which can be misleading for students and programmers.
 
@@ -1166,9 +1232,9 @@ It can quickly become a huge mess.
 While it is usually quite clear how to parallelize kernels, the choice of *which* loop to parallelize over is sometimes difficult for beginner programmers.
 At least in my experience, I have found that codebases using parallel loops end up looking just as messy, if not messier, than code using kernel-based approaches.
 On the other hand, for programmers that know what they are doing, loop-based abstractions can still be quite helpful -- especially for code that already exists and would be a pain to rewrite.
-There are also GPU languages (like Kokkos and SyCL) that use parallel loops by default.
+There are also GPU interfaces (like Kokkos and SyCL) that use parallel loops by default.
 
-Unfortunately, for all the reasons mentioned here, there are is not strong library support for loop vectorization on the GPU in Julia, though there have been many attempts.
+Unfortunately, for all the reasons mentioned here, there is not strong library support for loop vectorization on the GPU in Julia, though there have been many attempts.
 If you absolutely need a loop-based abstraction for parallel GPU programming in Julia, I would recommend looking into GPUifyLoops.jl, Floops.jl, or JACC.jl.
 By the time you are reading this, there might be another solution that exists as well.
 
