@@ -43,16 +43,11 @@ It's pretty clear that the GPU does more than "just graphics."
 
 Another great question!
 
-This book is specifically written for students who want to use their GPU for more general applications (like large-scale simulations).
-It is a little unfortunate that the programming interfaces used for graphics are typically quite different than those used for computing.
+Unfortunately, the programming interfaces used for graphical applications are typically quite different than those used for computing.
+This book is specifically written for students who want to use their GPU for general applications (like large-scale simulations) and will therefore be focusing on computation instead of graphics.
 If you are interested in building a game or rendering engine, it might be best to think of this book as a way to satiate some idle curiosity that might be lingering in the back of your head.
 It's all good to know, but it's ok to read it for fun instead of rigor.
-
-That said, there are still a number of good reasons to keep reading:
-1. It is entirely possible to use the lessons learned from this book to do "software rendering," which can be more flexible than traditional graphics workflows.
-2. We'll be discussing several graphical applications that are well-suited for computational workflows, such as ray marching and splatting.
-3. Even within traditional graphics workflows, there are certain applications that use "compute shaders" for various reasons (volume rendering and particle systems both come to mind). Compute shaders are almost identical to the functions we will be writing in this book.
-4. This book should give you some key intuition about how and why the GPU works the way it does, which could be quite valuable for performance engineering down the road.
+That said, throughout this book, we will be introducing several "software rendering" approaches that use computational interfaces to do graphics, and these applications might be very useful to those wanting to do more traditional graphics.
 
 But there is a larger question here.
 Why is there such a big difference between interfaces for graphics and interfaces for computation?
