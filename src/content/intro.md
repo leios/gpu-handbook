@@ -63,7 +63,7 @@ Well, this brings up something that I really have to say before continuing furth
 An unfortunate truth about GPU computing in 2025 that all students must be aware of before proceeding further.
 No matter what language, interface, or method you decide to use for GPU programming, they all share one thing in common: jank.
 
-Simply put, GPU interfaces are way, way less polished than you might expect when transitioning from "traditional" CPU programming.
+Simply put, GPU interfaces are way, way less polished than you might expect when transitioning from "traditional" programming on the Central Processing Unit (CPU).
 Some of this is because GPUs are inherently parallel devices, while CPU code is often written without parallelism in mind.
 But I would argue that majority of programmers struggling with GPU programming in 2025 are not necessarily struggling with concepts, but are instead limited by the software used to implement those concepts.
 
