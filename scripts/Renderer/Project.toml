@@ -1,0 +1,12 @@
+name = "Renderer"
+uuid = "8bd4e8de-a7fd-44f3-b4d0-1e5b8c3fc9f3"
+authors = ["James Schloss <jrs.schloss@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
+KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
+
+[compat]
+Images = "0.26.2"
+KernelAbstractions = "0.9.34"
